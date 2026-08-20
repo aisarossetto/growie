@@ -1,3 +1,5 @@
+import { recordTrackingEvent } from './events.js';
+
 // Serverless Function for 1x1 Email Open Tracking Pixel
 export default async function handler(req, res) {
   // CORS setup
@@ -24,7 +26,17 @@ export default async function handler(req, res) {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
 
-  // Log opening event
+  // Record Open Event in System Store
+  try {
+    recordTrackingEvent({
+      type: 'open',
+      campaignId: campaignId || '',
+      leadId: leadId || '',
+      email: email || '',
+      tenantId: tenantId || 't1'
+    });
+  } catch (e) {}
+
   console.log(`👁️ EMAIL TRACKING PIXEL OPENED! Campaign: ${campaignId}, Lead: ${leadId}, Email: ${email}, Time: ${new Date().toISOString()}`);
 
   // Return pixel image

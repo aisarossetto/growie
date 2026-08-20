@@ -201,6 +201,84 @@ export function App() {
     apiService.saveUsers(userList);
   }, [userList]);
 
+  // Real-Time Email Open & Click Tracking Event Poller
+  const [processedEventIds, setProcessedEventIds] = useState<Set<string>>(() => new Set());
+  const [liveToastNotification, setLiveToastNotification] = useState<{ title: string; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/track/events');
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (!data.success || !Array.isArray(data.events) || data.events.length === 0) return;
+
+        data.events.forEach((evt: any) => {
+          if (!evt.id || processedEventIds.has(evt.id)) return;
+
+          setProcessedEventIds((prev) => new Set(prev).add(evt.id));
+
+          const targetEmail = (evt.email || '').toLowerCase().trim();
+          const targetCmpId = evt.campaignId;
+
+          if (evt.type === 'open') {
+            // 1. Trigger System Notification & Toast
+            const notifMsg = `O lead ${targetEmail || 'destinatário'} acabou de abrir a sua campanha de e-mail (${evt.timeFormatted || 'agora'})!`;
+            apiService.addNotification({
+              title: '👁️ E-mail Marketing Aberto!',
+              description: notifMsg,
+              type: 'email_opened'
+            }, currentTenant?.id);
+
+            setLiveToastNotification({
+              title: '👁️ Nova Abertura de E-mail Detectada!',
+              message: notifMsg
+            });
+            setTimeout(() => setLiveToastNotification(null), 6000);
+
+            // 2. Update EmailCampaigns state
+            setEmailCampaigns((prevCampaigns) =>
+              prevCampaigns.map((cmp) => {
+                if (targetCmpId && cmp.id !== targetCmpId) return cmp;
+                const updatedRecipients = (cmp.recipientLeads || []).map((r) => {
+                  if (targetEmail && r.email.toLowerCase().trim() === targetEmail) {
+                    return { ...r, opened: true, openedAt: evt.timestamp || new Date().toISOString(), status: 'aberto' as const };
+                  }
+                  return r;
+                });
+                const openedCount = updatedRecipients.filter((r) => r.opened).length;
+                const openRate = updatedRecipients.length > 0 ? Math.round((openedCount / updatedRecipients.length) * 100) : cmp.openRate;
+                return { ...cmp, recipientLeads: updatedRecipients, openRate };
+              })
+            );
+
+            // 3. Update Lead timeline state
+            setLeads((prevLeads) =>
+              prevLeads.map((l) => {
+                if (targetEmail && l.email.toLowerCase().trim() === targetEmail) {
+                  return {
+                    ...l,
+                    timeline: {
+                      ...l.timeline,
+                      emailOpened: true,
+                      emailOpenedAt: evt.timestamp || new Date().toISOString()
+                    }
+                  };
+                }
+                return l;
+              })
+            );
+          }
+        });
+      } catch (e) {}
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, currentTenant?.id, processedEventIds]);
+
   // Auth Gate check
   if (!isAuthenticated) {
     return (
@@ -824,17 +902,24 @@ export function App() {
         onDeleteTenant={handleDeleteTenant}
       />
 
-      {/* Root Single Lead Registration Modal */}
-      <SingleLeadModal
-        isOpen={isSingleLeadModalOpen}
-        onClose={() => setIsSingleLeadModalOpen(false)}
-        currentUser={currentUser}
-        users={userList}
-        onAddLead={(newLead) => {
-          handleAddLeads([newLead]);
-          setIsSingleLeadModalOpen(false);
-        }}
-      />
+      {/* Live Email Open Toast Notification Banner */}
+      {liveToastNotification && (
+        <div className="fixed bottom-6 right-6 z-50 bg-growie-dark text-white p-4 rounded-2xl shadow-2xl border border-growie-purple/50 flex items-center gap-3 animate-in slide-in-from-bottom-5 max-w-sm font-sans">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-growie-cyan flex items-center justify-center font-bold shrink-0 text-lg">
+            👁️
+          </div>
+          <div>
+            <h4 className="font-extrabold text-xs text-growie-cyan">{liveToastNotification.title}</h4>
+            <p className="text-[11px] text-slate-300 mt-0.5 leading-snug">{liveToastNotification.message}</p>
+          </div>
+          <button
+            onClick={() => setLiveToastNotification(null)}
+            className="text-slate-400 hover:text-white p-1 ml-auto font-bold text-xs"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }
