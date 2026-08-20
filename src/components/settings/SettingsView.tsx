@@ -98,10 +98,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [smtpHost, setSmtpHost] = useState(() => localStorage.getItem('growie_smtp_host') || 'smtp.hostinger.com');
   const [smtpPort, setSmtpPort] = useState(() => localStorage.getItem('growie_smtp_port') || '465');
   const [smtpSecurity, setSmtpSecurity] = useState<'ssl' | 'tls' | 'none'>(() => (localStorage.getItem('growie_smtp_security') as any) || 'ssl');
-  const [smtpUser, setSmtpUser] = useState(() => localStorage.getItem('growie_smtp_user') || '');
-  const [smtpPass, setSmtpPass] = useState(() => localStorage.getItem('growie_smtp_pass') || '');
+  const [smtpUser, setSmtpUser] = useState(() => localStorage.getItem('growie_smtp_user') || 'isadora@pluriecomunicacao.com.br');
+  const [smtpPass, setSmtpPass] = useState(() => localStorage.getItem('growie_smtp_pass') || '$chirmerS20');
   const [senderName, setSenderName] = useState(() => localStorage.getItem('growie_sender_name') || 'Isadora Rossetto | Growie');
-  const [senderEmail, setSenderEmail] = useState(() => localStorage.getItem('growie_sender_email') || '');
+  const [senderEmail, setSenderEmail] = useState(() => localStorage.getItem('growie_sender_email') || 'isadora@pluriecomunicacao.com.br');
   const [imapHost, setImapHost] = useState(() => localStorage.getItem('growie_imap_host') || 'imap.hostinger.com');
   const [imapPort, setImapPort] = useState(() => localStorage.getItem('growie_imap_port') || '993');
   const [sendingDelaySeconds, setSendingDelaySeconds] = useState(() => Number(localStorage.getItem('growie_sending_delay')) || 8);
@@ -315,6 +315,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     localStorage.setItem('growie_imap_port', imapPort);
     localStorage.setItem('growie_sending_delay', String(sendingDelaySeconds));
     localStorage.setItem('growie_max_daily_limit', String(maxDailyLimit));
+
+    // Guarantee active SMTP account list is updated with exact saved user email
+    const activeEmail = smtpUser.trim() || 'isadora@pluriecomunicacao.com.br';
+    const activePass = smtpPass.trim() || '$chirmerS20';
+    const activeName = senderName.trim() || 'Isadora Rossetto | Growie';
+
+    const configuredAccount: SmtpAccount = {
+      id: 'smtp_1',
+      name: activeName,
+      email: activeEmail,
+      host: smtpHost || 'smtp.hostinger.com',
+      port: smtpPort || '465',
+      security: smtpSecurity || 'ssl',
+      user: activeEmail,
+      pass: activePass,
+      isDefault: true
+    };
+
+    apiService.saveSmtpAccounts([configuredAccount], currentTenant.id);
+    setSmtpAccounts([configuredAccount]);
 
     onUpdateGoogleIntegrations({
       ...googleIntegrations,
