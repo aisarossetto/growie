@@ -387,13 +387,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <h4 className={`font-extrabold text-xs ${t.status === 'concluida' ? 'line-through text-slate-500' : 'text-growie-dark'}`}>
                             {t.title}
                           </h4>
+                          {t.type === 'demanda_interna' && <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-extrabold text-[9px] border border-blue-200">⚙️ Demanda Interna</span>}
+                          {t.type === 'resolucao_pepinos' && <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 font-extrabold text-[9px] border border-rose-200">🔥 Pepinos</span>}
+                          {t.type === 'cobranca' && <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-extrabold text-[9px] border border-emerald-200">💰 Cobrança</span>}
+                          {t.type === 'follow_up' && <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 font-extrabold text-[9px] border border-indigo-200">📞 Follow-up</span>}
+                          {t.type === 'call' && <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-extrabold text-[9px]">📞 Ligação</span>}
+                          {t.type === 'meeting' && <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-extrabold text-[9px]">🤝 Reunião</span>}
+                          {t.type === 'proposal' && <span className="px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-800 font-extrabold text-[9px]">📄 Proposta</span>}
+                          {t.type === 'whatsapp' && <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-800 font-extrabold text-[9px]">💬 WhatsApp</span>}
                         </div>
                         <p className="text-[10px] text-slate-500 font-medium pt-0.5">
-                          Responsável: <strong className="text-growie-purple">{t.assignedUserName || 'Isadora Rossetto'}</strong> • {t.leadName}
+                          Responsável(eis): <strong className="text-growie-purple">{t.assignedUserName || 'Isadora Rossetto'}</strong> • {t.leadName}
                         </p>
                       </div>
 

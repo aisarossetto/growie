@@ -310,9 +310,11 @@ export interface TaskItem {
   status: TaskStatus;
   leadName: string;
   company?: string;
-  type: 'call' | 'meeting' | 'proposal' | 'whatsapp';
+  type: 'call' | 'meeting' | 'proposal' | 'whatsapp' | 'demanda_interna' | 'resolucao_pepinos' | 'cobranca' | 'follow_up';
   assignedUserId?: string;
+  assignedUserIds?: string[];
   assignedUserName?: string;
+  assignedUserNames?: string[];
 }
 
 export interface WaitingClient {

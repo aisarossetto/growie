@@ -27,17 +27,34 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
   const [title, setTitle] = useState(taskToEdit?.title || '');
   const [leadName, setLeadName] = useState(taskToEdit?.leadName || '');
-  const [assignedUserId, setAssignedUserId] = useState(taskToEdit?.assignedUserId || '');
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>(() => {
+    if (taskToEdit?.assignedUserIds && taskToEdit.assignedUserIds.length > 0) return taskToEdit.assignedUserIds;
+    if (taskToEdit?.assignedUserId) return [taskToEdit.assignedUserId];
+    return [];
+  });
   const [dueDate, setDueDate] = useState(taskToEdit?.dueDate || todayStr);
   const [dueTime, setDueTime] = useState(taskToEdit?.dueTime || '15:00');
   const [type, setType] = useState<TaskItem['type']>(taskToEdit?.type || 'call');
   const [priority, setPriority] = useState<TaskItem['priority']>(taskToEdit?.priority || 'Alta');
 
-  const selectedUser = users.find(u => u.id === assignedUserId);
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds(prev => 
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const getAssignedNames = () => {
+    if (selectedUserIds.length === 0) return 'Isadora Rossetto (Sua Conta)';
+    const names = users.filter(u => selectedUserIds.includes(u.id)).map(u => u.name);
+    return names.length > 0 ? names.join(', ') : 'Isadora Rossetto';
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+
+    const assignedNames = getAssignedNames();
+    const primaryUserId = selectedUserIds[0] || '';
 
     if (taskToEdit && onUpdateTask) {
       onUpdateTask({
@@ -48,8 +65,10 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
         dueTime,
         type,
         priority,
-        assignedUserId,
-        assignedUserName: selectedUser?.name || taskToEdit.assignedUserName || 'Isadora Rossetto'
+        assignedUserId: primaryUserId,
+        assignedUserIds: selectedUserIds,
+        assignedUserName: assignedNames,
+        assignedUserNames: selectedUserIds.map(id => users.find(u => u.id === id)?.name || '')
       });
     } else {
       const task: TaskItem = {
@@ -62,8 +81,10 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
         priority,
         completed: false,
         status: 'em_espera',
-        assignedUserId,
-        assignedUserName: selectedUser?.name || 'Isadora Rossetto'
+        assignedUserId: primaryUserId,
+        assignedUserIds: selectedUserIds,
+        assignedUserName: assignedNames,
+        assignedUserNames: selectedUserIds.map(id => users.find(u => u.id === id)?.name || '')
       };
       onAddTask(task);
     }
@@ -83,7 +104,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div>
             <label className="block font-bold text-slate-700 mb-1">Descrição da Tarefa *</label>
             <input
@@ -96,22 +117,38 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
             />
           </div>
 
+          {/* Multi-user Assignment */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1">
-              <UserCheck size={14} className="text-growie-purple" /> Membro da Equipe Responsável:
+            <label className="block font-bold text-slate-700 mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <UserCheck size={14} className="text-growie-purple" /> Membros da Equipe Responsáveis:
+              </span>
+              <span className="text-[10px] text-growie-purple font-mono font-bold">
+                {selectedUserIds.length} selecionado(s)
+              </span>
             </label>
-            <select
-              value={assignedUserId}
-              onChange={(e) => setAssignedUserId(e.target.value)}
-              className="w-full p-2.5 bg-growie-bg border border-slate-200 rounded-xl font-bold text-growie-purple focus:border-growie-purple"
-            >
-              <option value="">-- Isadora Rossetto (Sua Conta) --</option>
+            <div className="p-2.5 bg-growie-bg border border-slate-200 rounded-xl space-y-1.5 max-h-32 overflow-y-auto">
+              <label className="flex items-center gap-2 text-xs font-bold text-growie-purple cursor-pointer p-1 rounded hover:bg-purple-50">
+                <input
+                  type="checkbox"
+                  checked={selectedUserIds.length === 0}
+                  onChange={() => setSelectedUserIds([])}
+                  className="rounded accent-growie-purple"
+                />
+                <span>-- Isadora Rossetto (Sua Conta) --</span>
+              </label>
               {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  👤 {u.name} ({u.role})
-                </option>
+                <label key={u.id} className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer p-1 rounded hover:bg-slate-100">
+                  <input
+                    type="checkbox"
+                    checked={selectedUserIds.includes(u.id)}
+                    onChange={() => toggleUserSelection(u.id)}
+                    className="rounded accent-growie-purple"
+                  />
+                  <span>👤 {u.name} ({u.role})</span>
+                </label>
               ))}
-            </select>
+            </div>
           </div>
 
           <div>
@@ -132,16 +169,20 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Tipo de Ação</label>
+              <label className="block font-bold text-slate-700 mb-1">Tipo de Ação / Categoria</label>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as any)}
-                className="w-full p-2.5 bg-growie-bg border border-slate-200 rounded-xl font-semibold text-growie-dark focus:border-growie-purple"
+                className="w-full p-2.5 bg-growie-bg border border-slate-200 rounded-xl font-semibold text-growie-dark focus:border-growie-purple cursor-pointer"
               >
-                <option value="call">Ligação Telefônica</option>
-                <option value="meeting">Reunião Agendada</option>
-                <option value="proposal">Envio de Proposta</option>
-                <option value="whatsapp">Mensagem WhatsApp</option>
+                <option value="demanda_interna">⚙️ Demanda Interna</option>
+                <option value="resolucao_pepinos">🔥 Resolução de Pepinos</option>
+                <option value="cobranca">💰 Cobrança / Financeiro</option>
+                <option value="follow_up">📞 Follow-up Comercial</option>
+                <option value="call">📞 Ligação Telefônica</option>
+                <option value="meeting">🤝 Reunião Agendada</option>
+                <option value="proposal">📄 Envio de Proposta</option>
+                <option value="whatsapp">💬 Mensagem WhatsApp</option>
               </select>
             </div>
 
