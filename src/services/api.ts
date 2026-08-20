@@ -406,14 +406,13 @@ export const apiService = {
   // Lead Groups / Pastas
   getLeadGroups: (tenantId: string = 't1'): LeadGroup[] => {
     try {
-      const data = localStorage.getItem(getTenantKey('growie_app_lead_groups_v11', tenantId));
+      const safeId = (tenantId && typeof tenantId === 'string' && tenantId.trim().length > 0) ? tenantId.trim() : 't1';
+      const data = localStorage.getItem(getTenantKey('growie_app_lead_groups_v11', safeId));
       if (data !== null) {
-        return JSON.parse(data);
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
       }
-      return [
-        { id: 'lg_1', name: 'Decisores de Compras Q3', description: 'Diretores e Gerentes de Compras', color: 'purple', leadIds: [] },
-        { id: 'lg_2', name: 'Leads VIP WhatsApp', description: 'Contatos com alta interação no WhatsApp', color: 'emerald', leadIds: [] }
-      ];
+      return [];
     } catch (e) {
       return [];
     }

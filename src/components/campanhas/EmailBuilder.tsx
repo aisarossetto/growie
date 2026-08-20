@@ -241,24 +241,34 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
     });
   });
 
-  // Filter leads based on selected folder / status / anti-duplication
-  const filteredLeadsForSending = leads.filter((lead) => {
-    const leadEmail = lead.email.toLowerCase().trim();
-    if (selectedFolder === 'MENOS_JA_ENVIADOS') {
-      return !previousSentEmails.has(leadEmail);
+  // Calculate real valid leads and unsent leads
+  const allValidLeads = leads.filter(l => l.email && l.email.includes('@'));
+  const unsentLeads = allValidLeads.filter(l => !previousSentEmails.has(l.email.toLowerCase().trim()));
+
+  // Dynamic Resolver for Folder / Group leads
+  const getLeadsForFolder = (folderKey: string) => {
+    if (selectedLeadIds.length > 0) {
+      return leads.filter(l => selectedLeadIds.includes(l.id) && l.email && l.email.includes('@'));
     }
-    if (selectedFolder === 'Remessa 01 - Leads Inbound Q3') return !lead.isSleeping;
-    if (selectedFolder === 'Remessa 02 - Prospecção Outbound') return lead.source === 'Prospecção Fria' || lead.source === 'Importação em Massa' || lead.source === 'Lista Enviada';
-    if (selectedFolder === 'Remessa 03 - Reengajamento Adormecidos') return lead.isSleeping;
-    if (selectedFolder.startsWith('GROUP_')) {
-      const gId = selectedFolder.replace('GROUP_', '');
-      const grp = leadGroups.find(g => g.id === gId);
-      if (grp) {
-        return grp.leadIds.includes(lead.id) || (lead.groups || []).includes(gId);
-      }
+    if (folderKey === 'MENOS_JA_ENVIADOS') {
+      return unsentLeads;
     }
-    return true; // Toda a base
-  });
+    if (folderKey === 'Toda a Base') {
+      return allValidLeads;
+    }
+    if (folderKey.startsWith('GROUP_')) {
+      const grpId = folderKey.replace('GROUP_', '');
+      const grp = leadGroups.find(g => g.id === grpId);
+      if (!grp) return [];
+      return allValidLeads.filter(l => 
+        (grp.leadIds || []).includes(l.id) || 
+        (l.groups || []).includes(grp.name)
+      );
+    }
+    return allValidLeads.filter(l => (l.groups || []).includes(folderKey));
+  };
+
+  const filteredLeadsForSending = getLeadsForFolder(selectedFolder);
 
   // Auto select all filtered leads by default
   useEffect(() => {
@@ -366,11 +376,12 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
       return;
     }
 
-    const selectedLeadsObjects = leads.filter((l) => selectedLeadIds.includes(l.id));
-    const finalRecipientsList = selectedLeadsObjects.length > 0 ? selectedLeadsObjects : [
-      { id: 'l1', name: 'Fernando Silva (FintechX)', email: 'fernando@fintechx.com.br', company: 'FintechX Brasil' },
-      { id: 'l2', name: 'Carolina Mendes (Logística Futuro)', email: 'carolina@logisticafuturo.com.br', company: 'Logística Futuro' }
-    ];
+    const finalRecipientsList = getLeadsForFolder(selectedFolder);
+
+    if (finalRecipientsList.length === 0) {
+      alert('Nenhum lead com e-mail foi encontrado na pasta ou seleção atual. Por favor, adicione leads na página de Leads.');
+      return;
+    }
 
     setIsSendingModalOpen(true);
     setSendingProgressIndex(0);
@@ -703,14 +714,14 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
                   onChange={(e) => setSelectedFolder(e.target.value)}
                   className="w-full p-2.5 bg-growie-bg border border-slate-200 rounded-xl font-bold text-growie-purple focus:border-growie-purple cursor-pointer"
                 >
-                  <option value="MENOS_JA_ENVIADOS">🎯 Todos os Leads (MENOS os que já receberam e-mail anterior)</option>
-                  <option value="Remessa 01 - Leads Inbound Q3">📁 Pasta: Remessa 01 - Leads Inbound Q3</option>
-                  <option value="Remessa 02 - Prospecção Outbound">📁 Pasta: Remessa 02 - Prospecção Outbound</option>
-                  <option value="Remessa 03 - Reengajamento Adormecidos">📁 Pasta: Remessa 03 - Reengajamento</option>
-                  <option value="Toda a Base">📁 Pasta: Toda a Base de Leads</option>
-                  {leadGroups.map((g) => (
-                    <option key={g.id} value={`GROUP_${g.id}`}>🏷️ Grupo: {g.name} ({g.leadIds?.length || 0} leads)</option>
-                  ))}
+                  <option value="MENOS_JA_ENVIADOS">🎯 Todos os Leads (MENOS os que já receberam e-mail anterior) ({unsentLeads.length} leads)</option>
+                  <option value="Toda a Base">📁 Toda a Base de Leads ({allValidLeads.length} leads)</option>
+                  {leadGroups.map((g) => {
+                    const count = getLeadsForFolder(`GROUP_${g.id}`).length;
+                    return (
+                      <option key={g.id} value={`GROUP_${g.id}`}>📁 Pasta: {g.name} ({count} lead{count === 1 ? '' : 's'})</option>
+                    );
+                  })}
                 </select>
               </div>
 
