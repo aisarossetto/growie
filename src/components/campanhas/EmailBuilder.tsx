@@ -50,12 +50,12 @@ export const replaceLeadVariables = (templateText: string, lead?: any): string =
   if (!templateText) return '';
   if (!lead) {
     return templateText
-      .replace(/\{*\{*\s*(primeiro_nome|primeironome|first_name|firstname)\s*\}*\}/gi, 'Diego')
-      .replace(/\{*\{*\s*(nome|nome_contato|contato|contactName|lead\.name)\s*\}*\}/gi, 'Diego Silva')
-      .replace(/\{*\{*\s*(empresa|company|razao_social)\s*\}*\}/gi, 'FintechX Brasil')
-      .replace(/\{*\{*\s*(cargo|role|funcao)\s*\}*\}/gi, 'Gerente Comercial')
-      .replace(/\{*\{*\s*(cidade|city)\s*\}*\}/gi, 'São Paulo - SP')
-      .replace(/\{*\{*\s*(ramo|segmento)\s*\}*\}/gi, 'Tecnologia');
+      .replace(/\{*\s*(primeiro_nome|primeironome|first_name|firstname)\s*\}*/gi, 'Isadora')
+      .replace(/\{*\s*(nome|nome_contato|contato|contactName|lead\.name)\s*\}*/gi, 'Isadora Rossetto')
+      .replace(/\{*\s*(empresa|company|razao_social)\s*\}*/gi, 'Growie')
+      .replace(/\{*\s*(cargo|role|funcao)\s*\}*/gi, 'Head de Vendas')
+      .replace(/\{*\s*(cidade|city)\s*\}*/gi, 'São Paulo - SP')
+      .replace(/\{*\s*(ramo|segmento)\s*\}*/gi, 'Tecnologia');
   }
 
   // Extract raw person name & company safely from any lead format
@@ -78,31 +78,25 @@ export const replaceLeadVariables = (templateText: string, lead?: any): string =
   let text = templateText;
 
   // 1. Replace Primeiro Nome variations (e.g. {primeiro_nome}, {{primeiro_nome}}, primeiro_nome}}, {primeiro_nome)
-  text = text.replace(/\{{0,2\}\s*(primeiro_nome|primeironome|first_name|firstname)\s*\}{1,2}/gi, firstName);
-  text = text.replace(/\{{1,2\}\s*(primeiro_nome|primeironome|first_name|firstname)\s*\}{0,2}/gi, firstName);
+  text = text.replace(/\{*\s*(primeiro_nome|primeironome|first_name|firstname)\s*\}*/gi, firstName);
 
   // 2. Replace Full Person Name variations (e.g. {nome}, {{nome}}, nome}}, {nome, {contato}, {{contato}}, contato}})
-  text = text.replace(/\{{0,2\}\s*(nome|nome_contato|contato|contactName|lead\.name)\s*\}{1,2}/gi, personNameClean);
-  text = text.replace(/\{{1,2\}\s*(nome|nome_contato|contato|contactName|lead\.name)\s*\}{0,2}/gi, personNameClean);
+  text = text.replace(/\{*\s*(nome|nome_contato|contato|contactName|lead\.name)\s*\}*/gi, personNameClean);
 
   // 3. Replace Company variations (e.g. {empresa}, {{empresa}}, empresa}}, {empresa, {company}, {{company}}, company}})
-  text = text.replace(/\{{0,2\}\s*(empresa|company|razao_social)\s*\}{1,2}/gi, companyName);
-  text = text.replace(/\{{1,2\}\s*(empresa|company|razao_social)\s*\}{0,2}/gi, companyName);
+  text = text.replace(/\{*\s*(empresa|company|razao_social)\s*\}*/gi, companyName);
 
   // 4. Replace Role/Cargo variations (e.g. {cargo}, {{cargo}}, cargo}}, {role}, {{role}})
-  text = text.replace(/\{{0,2\}\s*(cargo|role|funcao)\s*\}{1,2}/gi, roleName);
-  text = text.replace(/\{{1,2\}\s*(cargo|role|funcao)\s*\}{0,2}/gi, roleName);
+  text = text.replace(/\{*\s*(cargo|role|funcao)\s*\}*/gi, roleName);
 
   // 5. Replace City variations (e.g. {cidade}, {{cidade}}, cidade}}, {city}, {{city}})
-  text = text.replace(/\{{0,2\}\s*(cidade|city)\s*\}{1,2}/gi, cityName);
-  text = text.replace(/\{{1,2\}\s*(cidade|city)\s*\}{0,2}/gi, cityName);
+  text = text.replace(/\{*\s*(cidade|city)\s*\}*/gi, cityName);
 
   // 6. Replace Ramo variations (e.g. {ramo}, {{ramo}}, ramo}}, {segmento}, {{segmento}})
-  text = text.replace(/\{{0,2\}\s*(ramo|segmento)\s*\}{1,2}/gi, ramoName);
-  text = text.replace(/\{{1,2\}\s*(ramo|segmento)\s*\}{0,2}/gi, ramoName);
+  text = text.replace(/\{*\s*(ramo|segmento)\s*\}*/gi, ramoName);
 
   return text;
-};
+};;
 
 export const EmailBuilder: React.FC<EmailBuilderProps> = ({
   campaigns,
