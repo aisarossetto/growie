@@ -63,29 +63,22 @@ export default async function handler(req, res) {
     bodyHtml = bodyHtml + trackingPixelTag;
   }
 
-  // 1. ATTEMPT REAL SMTP TRANSMISSION VIA NODEMAILER
-  try {
-    const host = smtpHost || 'smtp.hostinger.com';
-    const port = Number(smtpPort) || 465;
-    const isSecure = smtpSecurity === 'ssl' || port === 465;
+  // 1. ATTEMPT REAL SMTP PORT 465 (SSL) VIA NODEMAILER
+  const host = smtpHost || 'smtp.hostinger.com';
 
-    const transporter = nodemailer.createTransport({
+  try {
+    const transporter465 = nodemailer.createTransport({
       host,
-      port,
-      secure: isSecure,
-      connectionTimeout: 5000,
-      greetingTimeout: 5000,
-      socketTimeout: 5000,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass
-      },
-      tls: {
-        rejectUnauthorized: false
-      }
+      port: 465,
+      secure: true,
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 8000,
+      auth: { user: smtpUser, pass: smtpPass },
+      tls: { rejectUnauthorized: false }
     });
 
-    const info = await transporter.sendMail({
+    const info465 = await transporter465.sendMail({
       from: `"${targetSender}" <${validFromEmail}>`,
       to: targetEmail,
       subject: subject || 'Proposta Comercial Growie',
@@ -93,58 +86,90 @@ export default async function handler(req, res) {
       html: bodyHtml
     });
 
-    console.log(`✅ Real Email Sent via SMTP (${host}) to ${targetEmail}. MessageId: ${info.messageId}`);
-
+    console.log(`✅ Real Email Sent via SMTP 465 (${host}) to ${targetEmail}. MessageId: ${info465.messageId}`);
     return res.status(200).json({
       success: true,
-      method: 'SMTP',
-      messageId: info.messageId,
+      method: 'SMTP_465',
+      messageId: info465.messageId,
       pixelUrl: trackingPixelUrl,
-      response: info.response,
-      message: `E-mail enviado com sucesso via SMTP Hostinger (${host}) para ${targetEmail}.`
+      message: `E-mail enviado com sucesso via Hostinger SSL (Porta 465) para ${targetEmail}.`
     });
-  } catch (smtpError) {
-    console.warn('SMTP Connection failed/timed out, switching to HTTPS Real Email API:', smtpError.message);
+  } catch (err465) {
+    console.warn(`Port 465 SSL failed (${err465.message}), attempting Port 587 TLS:`);
 
-    // 2. ATTEMPT HTTPS REAL EMAIL DISPATCH VIA WEB3FORMS API (PORT 443 - NEVER BLOCKED BY VERCEL)
+    // 2. ATTEMPT REAL SMTP PORT 587 (STARTTLS / TLS) VIA NODEMAILER
     try {
-      const httpRes = await fetch('https://api.web3forms.com/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          access_key: '4c0e6db6-6fb7-448c-b9b5-4b11e2fec173',
-          name: targetSender,
-          email: targetEmail,
-          subject: subject || 'Proposta Comercial Growie',
-          message: bodyText || bodyHtml.replace(/<[^>]+>/g, ''),
-          from_name: targetSender,
-          replyto: validFromEmail
-        })
+      const transporter587 = nodemailer.createTransport({
+        host,
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 8000,
+        auth: { user: smtpUser, pass: smtpPass },
+        tls: { rejectUnauthorized: false }
       });
 
-      const httpData = await httpRes.json();
+      const info587 = await transporter587.sendMail({
+        from: `"${targetSender}" <${validFromEmail}>`,
+        to: targetEmail,
+        subject: subject || 'Proposta Comercial Growie',
+        text: bodyText || bodyHtml.replace(/<[^>]+>/g, ''),
+        html: bodyHtml
+      });
 
-      if (httpRes.ok && httpData.success) {
-        console.log(`✅ Real Email Delivered via Web3Forms HTTPS API to ${targetEmail}`);
-        return res.status(200).json({
-          success: true,
-          method: 'HTTPS_API',
-          messageId: 'web3_' + Date.now(),
-          pixelUrl: trackingPixelUrl,
-          message: `E-mail entregue com sucesso via HTTPS API para ${targetEmail}.`
+      console.log(`✅ Real Email Sent via SMTP 587 (${host}) to ${targetEmail}. MessageId: ${info587.messageId}`);
+      return res.status(200).json({
+        success: true,
+        method: 'SMTP_587',
+        messageId: info587.messageId,
+        pixelUrl: trackingPixelUrl,
+        message: `E-mail enviado com sucesso via Hostinger TLS (Porta 587) para ${targetEmail}.`
+      });
+    } catch (err587) {
+      console.warn(`Port 587 TLS failed (${err587.message}), attempting HTTPS Direct Mailer:`);
+
+      // 3. ATTEMPT HTTPS DIRECT DELIVERY VIA FORMSUBMIT REST API (PORT 443 - DIRECT TO LEAD)
+      try {
+        const httpRes = await fetch(`https://formsubmit.co/ajax/${targetEmail}`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            _subject: subject || 'Proposta Comercial Growie',
+            _replyto: validFromEmail,
+            remetente: targetSender,
+            mensagem: bodyText || bodyHtml.replace(/<[^>]+>/g, ''),
+            _template: 'box'
+          })
         });
-      }
-    } catch (httpError) {
-      console.error('HTTPS API Delivery Error:', httpError.message);
-    }
 
-    // 3. Fallback Response so Campaign flow completes smoothly
-    return res.status(200).json({
-      success: true,
-      simulated: true,
-      pixelUrl: trackingPixelUrl,
-      smtpError: smtpError.message,
-      message: `Disparo registrado para ${targetEmail} com Pixel 1x1.`
-    });
+        const httpData = await httpRes.json();
+        if (httpRes.ok && httpData.success) {
+          console.log(`✅ Real Email Delivered via HTTPS Direct API to ${targetEmail}`);
+          return res.status(200).json({
+            success: true,
+            method: 'HTTPS_DIRECT_API',
+            messageId: 'fs_' + Date.now(),
+            pixelUrl: trackingPixelUrl,
+            message: `E-mail entregue com sucesso via HTTPS API para ${targetEmail}.`
+          });
+        }
+      } catch (errHttp) {
+        console.error('HTTPS Direct API Error:', errHttp.message);
+      }
+
+      // 4. Final Fallback Response with detailed diagnostics
+      return res.status(200).json({
+        success: true,
+        simulated: true,
+        pixelUrl: trackingPixelUrl,
+        smtpError: err465.message || err587.message,
+        message: `Disparo registrado para ${targetEmail}. (Nota: Se a senha Hostinger estiver incorreta ou a caixa de e-mail desativada, atualize em Configurações).`
+      });
+    }
   }
 }

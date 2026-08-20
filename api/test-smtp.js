@@ -14,40 +14,62 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { smtpHost, smtpPort, smtpSecurity, smtpUser, smtpPass } = req.body;
+  const { smtpHost = 'smtp.hostinger.com', smtpPort = 465, smtpSecurity = 'ssl', smtpUser, smtpPass } = req.body || {};
 
-  if (!smtpHost || !smtpUser || !smtpPass) {
-    return res.status(400).json({ error: 'Preencha o servidor SMTP, usuário (e-mail) e senha para testar.' });
+  if (!smtpUser || !smtpPass) {
+    return res.status(400).json({ error: 'Preencha o e-mail de usuário e senha Hostinger para testar.' });
   }
 
-  try {
-    const port = Number(smtpPort) || 465;
-    const isSecure = smtpSecurity === 'ssl' || port === 465;
+  const host = smtpHost || 'smtp.hostinger.com';
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost || 'smtp.hostinger.com',
-      port,
-      secure: isSecure,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass
-      },
-      tls: {
-        rejectUnauthorized: false
-      }
+  // 1. TEST PORT 465 SSL
+  try {
+    const transporter465 = nodemailer.createTransport({
+      host,
+      port: 465,
+      secure: true,
+      connectionTimeout: 7000,
+      greetingTimeout: 7000,
+      socketTimeout: 7000,
+      auth: { user: smtpUser, pass: smtpPass },
+      tls: { rejectUnauthorized: false }
     });
 
-    await transporter.verify();
-
+    await transporter465.verify();
     return res.status(200).json({
       success: true,
-      message: `Conexão SMTP com ${smtpHost}:${port} (${isSecure ? 'SSL' : 'TLS'}) confirmada com sucesso! Autenticação OK para ${smtpUser}.`
+      port: 465,
+      message: `Conexão SMTP Hostinger com ${host}:465 (SSL) estabelecida e autenticada com sucesso para ${smtpUser}!`
     });
-  } catch (error) {
-    console.error('SMTP Hostinger Verify Error:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message || 'Falha ao autenticar com o servidor SMTP Hostinger. Verifique usuário e senha.'
-    });
+  } catch (err465) {
+    console.warn(`Port 465 failed for ${smtpUser}, trying Port 587 TLS:`, err465.message);
+
+    // 2. TEST PORT 587 STARTTLS
+    try {
+      const transporter587 = nodemailer.createTransport({
+        host,
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        connectionTimeout: 7000,
+        greetingTimeout: 7000,
+        socketTimeout: 7000,
+        auth: { user: smtpUser, pass: smtpPass },
+        tls: { rejectUnauthorized: false }
+      });
+
+      await transporter587.verify();
+      return res.status(200).json({
+        success: true,
+        port: 587,
+        message: `Conexão SMTP Hostinger com ${host}:587 (TLS/STARTTLS) estabelecida e autenticada com sucesso para ${smtpUser}!`
+      });
+    } catch (err587) {
+      console.error('Both SMTP ports failed:', err587.message);
+      return res.status(500).json({
+        success: false,
+        error: `Erro de Autenticação SMTP Hostinger: ${err465.message || err587.message}. Verifique se a senha do e-mail ${smtpUser} está correta.`
+      });
+    }
   }
 }
