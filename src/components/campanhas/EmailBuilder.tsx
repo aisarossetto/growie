@@ -47,56 +47,59 @@ interface EmailBuilderProps {
 }
 
 export const replaceLeadVariables = (templateText: string, lead?: any): string => {
-  if (!templateText) return '';
-  if (!lead) {
-    return templateText
-      .replace(/\{*\s*(primeiro_nome|primeironome|first_name|firstname)\s*\}*/gi, 'Isadora')
-      .replace(/\{*\s*(nome|nome_contato|contato|contactName|lead\.name)\s*\}*/gi, 'Isadora Rossetto')
-      .replace(/\{*\s*(empresa|company|razao_social)\s*\}*/gi, 'Growie')
-      .replace(/\{*\s*(cargo|role|funcao)\s*\}*/gi, 'Head de Vendas')
-      .replace(/\{*\s*(cidade|city)\s*\}*/gi, 'São Paulo - SP')
-      .replace(/\{*\s*(ramo|segmento)\s*\}*/gi, 'Tecnologia');
+  if (!templateText || typeof templateText !== 'string') return '';
+
+  let rawName = 'Cliente';
+  if (lead) {
+    rawName = lead.name || lead.leadName || lead.contactName || lead.nome || 'Cliente';
+  } else {
+    rawName = 'Isadora Rossetto';
   }
+  rawName = String(rawName).trim();
 
-  // Extract raw person name & company safely from any lead format
-  const rawName = (lead.name || lead.contactName || lead.leadName || lead.nome || 'Cliente').trim();
-  const personNameClean = rawName.includes('(') ? rawName.split('(')[0].trim() : rawName;
-  const firstName = personNameClean.split(' ')[0] || personNameClean;
+  let personNameClean = rawName;
+  let companyFromParenthesis = '';
+  if (rawName.includes('(')) {
+    const parts = rawName.split('(');
+    personNameClean = parts[0].trim();
+    companyFromParenthesis = parts[1]?.replace(')', '').trim() || '';
+  }
+  const firstNameVal = personNameClean.split(' ')[0] || personNameClean || 'Cliente';
 
-  const companyName = (
-    lead.company || 
-    lead.empresa || 
-    lead.razao_social || 
-    (rawName.includes('(') ? rawName.split('(')[1]?.replace(')', '').trim() : '') || 
-    'sua Empresa'
-  ).trim();
+  let companyVal = 'sua Empresa';
+  if (lead) {
+    companyVal = lead.company || lead.empresa || lead.companyName || lead.razao_social || companyFromParenthesis || 'sua Empresa';
+  } else {
+    companyVal = 'Growie';
+  }
+  companyVal = String(companyVal).trim() || 'sua Empresa';
 
-  const roleName = (lead.role || lead.cargo || lead.funcao || 'Decisor').trim();
-  const cityName = (lead.city || lead.cidade || '').trim();
-  const ramoName = (lead.ramo || lead.segmento || lead.interestCategory || '').trim();
+  const roleVal = lead?.role || lead?.cargo || lead?.funcao || 'Decisor';
+  const cityVal = lead?.city || lead?.cidade || '';
+  const ramoVal = lead?.ramo || lead?.segmento || lead?.interestCategory || '';
 
   let text = templateText;
 
-  // 1. Replace Primeiro Nome variations (e.g. {primeiro_nome}, {{primeiro_nome}}, primeiro_nome}}, {primeiro_nome)
-  text = text.replace(/\{*\s*(primeiro_nome|primeironome|first_name|firstname)\s*\}*/gi, firstName);
+  // Replace variations of {primeiro_nome}, {{primeiro_nome}}, etc.
+  text = text.replace(/\{+[\s\n]*(primeiro_nome|primeironome|first_name|firstname)[\s\n]*\}+/gi, firstNameVal);
 
-  // 2. Replace Full Person Name variations (e.g. {nome}, {{nome}}, nome}}, {nome, {contato}, {{contato}}, contato}})
-  text = text.replace(/\{*\s*(nome|nome_contato|contato|contactName|lead\.name)\s*\}*/gi, personNameClean);
+  // Replace variations of {nome}, {{nome}}, {contato}, etc.
+  text = text.replace(/\{+[\s\n]*(nome|nome_contato|contato|contactName|lead\.name)[\s\n]*\}+/gi, personNameClean);
 
-  // 3. Replace Company variations (e.g. {empresa}, {{empresa}}, empresa}}, {empresa, {company}, {{company}}, company}})
-  text = text.replace(/\{*\s*(empresa|company|razao_social)\s*\}*/gi, companyName);
+  // Replace variations of {empresa}, {{empresa}}, {company}, etc.
+  text = text.replace(/\{+[\s\n]*(empresa|company|razao_social)[\s\n]*\}+/gi, companyVal);
 
-  // 4. Replace Role/Cargo variations (e.g. {cargo}, {{cargo}}, cargo}}, {role}, {{role}})
-  text = text.replace(/\{*\s*(cargo|role|funcao)\s*\}*/gi, roleName);
+  // Replace variations of {cargo}, {{cargo}}, {role}, etc.
+  text = text.replace(/\{+[\s\n]*(cargo|role|funcao)[\s\n]*\}+/gi, roleVal);
 
-  // 5. Replace City variations (e.g. {cidade}, {{cidade}}, cidade}}, {city}, {{city}})
-  text = text.replace(/\{*\s*(cidade|city)\s*\}*/gi, cityName);
+  // Replace variations of {cidade}, {{cidade}}, {city}, etc.
+  text = text.replace(/\{+[\s\n]*(cidade|city)[\s\n]*\}+/gi, cityVal);
 
-  // 6. Replace Ramo variations (e.g. {ramo}, {{ramo}}, ramo}}, {segmento}, {{segmento}})
-  text = text.replace(/\{*\s*(ramo|segmento)\s*\}*/gi, ramoName);
+  // Replace variations of {ramo}, {{ramo}}, {segmento}, etc.
+  text = text.replace(/\{+[\s\n]*(ramo|segmento)[\s\n]*\}+/gi, ramoVal);
 
   return text;
-};;
+};
 
 export const EmailBuilder: React.FC<EmailBuilderProps> = ({
   campaigns,
@@ -112,7 +115,10 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
-  const [signature, setSignature] = useState('Atenciosamente,\nIsadora Rossetto | Head de Vendas Growie\nisadora@growie.io');
+
+  const defaultSenderName = localStorage.getItem('growie_sender_name') || 'Isadora Rossetto | Growie';
+  const defaultSenderEmail = localStorage.getItem('growie_sender_email') || localStorage.getItem('growie_smtp_user') || 'isadora@pluriecomunicacao.com.br';
+  const [signature, setSignature] = useState(`Atenciosamente,\n${defaultSenderName}\n${defaultSenderEmail}`);
   const [attachments, setAttachments] = useState<string[]>(['Apresentacao_Growie_Enterprise.pdf']);
   const [newAttachment, setNewAttachment] = useState('');
   const [selectedFolder, setSelectedFolder] = useState<string>('MENOS_JA_ENVIADOS');
