@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Mail, Building2, User, Key, ArrowRight, Zap, CheckCircle2, AlertCircle, Eye, EyeOff, Send } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, Building2, User, Key, ArrowRight, Zap, CheckCircle2, AlertCircle, Eye, EyeOff, Send, Camera, Upload } from 'lucide-react';
 import { User as UserType, Tenant } from '../../types';
 import { apiService } from '../../services/api';
 
@@ -27,6 +27,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [resetEmail, setResetEmail] = useState('');
   const [newResetPassword, setNewResetPassword] = useState('');
   const [isResetSending, setIsResetSending] = useState(false);
+
+  // Quick Avatar Change State on Login Card
+  const [editingAvatarUserId, setEditingAvatarUserId] = useState<string | null>(null);
+
+  const handleUpdateAvatarForUser = (userId: string, newAvatarUrl: string) => {
+    const target = users.find(u => u && u.id === userId);
+    if (target) {
+      target.avatar = newAvatarUrl;
+      apiService.saveUsers(users);
+      setSuccessAlert(`Foto de perfil de "${target.name}" salva com sucesso!`);
+    }
+    setEditingAvatarUserId(null);
+  };
 
   // Login Form
   const [loginEmail, setLoginEmail] = useState('');
@@ -98,7 +111,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
     // Default master fallback authentication for Isadora Rossetto
     if (cleanInput.includes('isadora') || cleanInput === 'isadoragschirmer@gmail.com') {
-      const masterUser: UserType = {
+      const existingIsadora = users.find(u => u && u.email && u.email.toLowerCase() === 'isadoragschirmer@gmail.com');
+      const masterUser: UserType = existingIsadora || {
         id: 'u_1786660498707',
         name: 'Isadora Rossetto',
         email: 'isadoragschirmer@gmail.com',
@@ -121,7 +135,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
     // Default master fallback authentication for Ciany Schirmer
     if (cleanInput.includes('ciany') || cleanInput === 'cianyschirmer@gmail.com') {
-      const cianyUser: UserType = {
+      const existingCiany = users.find(u => u && u.email && u.email.toLowerCase() === 'cianyschirmer@gmail.com');
+      const cianyUser: UserType = existingCiany || {
         id: 'u_1787061362033',
         name: 'Ciany Schirmer',
         email: 'cianyschirmer@gmail.com',
@@ -425,18 +440,42 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 </span>
                 <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto">
                   {users.filter(Boolean).map((u) => (
-                    <button
+                    <div
                       key={u.id || Math.random()}
-                      type="button"
-                      onClick={() => handleQuickSelectUser(u)}
                       className="p-2 rounded-xl bg-slate-900/60 hover:bg-growie-purple/30 border border-slate-800 hover:border-growie-purple transition-all flex items-center justify-between text-left group"
                     >
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={u.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-                          alt={u.name || 'Usuário'}
-                          className="w-7 h-7 rounded-lg object-cover border border-slate-700"
-                        />
+                      <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => handleQuickSelectUser(u)}>
+                        <div className="relative group/avatar">
+                          <img
+                            src={u.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                            alt={u.name || 'Usuário'}
+                            className="w-8 h-8 rounded-lg object-cover border border-slate-700 group-hover:border-growie-cyan"
+                          />
+                          <label
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute -bottom-1 -right-1 bg-growie-purple p-0.5 rounded-full text-white cursor-pointer hover:bg-growie-cyan shadow-sm"
+                            title="Trocar Foto de Perfil"
+                          >
+                            <Camera size={10} />
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(evt) => {
+                                const file = evt.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (eRes) => {
+                                    const dataUrl = eRes.target?.result as string;
+                                    handleUpdateAvatarForUser(u.id, dataUrl);
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+
                         <div>
                           <span className="font-extrabold text-white text-xs block group-hover:text-growie-cyan">
                             {u.name || 'Usuário'}
@@ -446,10 +485,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                           </span>
                         </div>
                       </div>
-                      <span className="text-[10px] font-extrabold text-growie-cyan bg-growie-cyan/10 px-2 py-0.5 rounded border border-growie-cyan/30 shrink-0">
+
+                      <button
+                        type="button"
+                        onClick={() => handleQuickSelectUser(u)}
+                        className="text-[10px] font-extrabold text-growie-cyan bg-growie-cyan/10 hover:bg-growie-cyan hover:text-slate-950 px-2 py-1 rounded border border-growie-cyan/30 shrink-0 transition-colors"
+                      >
                         ⚡ Entrar
-                      </span>
-                    </button>
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
