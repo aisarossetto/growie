@@ -451,35 +451,63 @@ export const apiService = {
   getSmtpAccounts: (tenantId: string = 't1'): SmtpAccount[] => {
     try {
       const data = localStorage.getItem(getTenantKey('growie_smtp_accounts_v11', tenantId));
+      let accounts: SmtpAccount[] = [];
       if (data !== null) {
-        return JSON.parse(data);
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          accounts = parsed.filter(Boolean);
+        }
       }
+
+      const savedUser = localStorage.getItem('growie_smtp_user') || 'isadora@pluriecomunicacao.com.br';
+      const savedPass = localStorage.getItem('growie_smtp_pass') || '$chirmerS20';
+      const savedHost = localStorage.getItem('growie_smtp_host') || 'smtp.hostinger.com';
+      const savedPort = localStorage.getItem('growie_smtp_port') || '465';
+      const savedName = localStorage.getItem('growie_sender_name') || 'Isadora Rossetto | Head de Vendas Growie';
+
+      if (accounts.length === 0) {
+        accounts = [
+          {
+            id: 'smtp_1',
+            name: savedName,
+            email: savedUser,
+            host: savedHost,
+            port: savedPort,
+            security: (localStorage.getItem('growie_smtp_security') as any) || 'ssl',
+            user: savedUser,
+            pass: savedPass,
+            isDefault: true
+          }
+        ];
+      } else {
+        const def = accounts.find(a => a.isDefault) || accounts[0];
+        if (def) {
+          if (localStorage.getItem('growie_smtp_user')) {
+            def.user = savedUser;
+            def.email = savedUser;
+          }
+          if (localStorage.getItem('growie_smtp_pass')) def.pass = savedPass;
+          if (localStorage.getItem('growie_smtp_host')) def.host = savedHost;
+          if (localStorage.getItem('growie_smtp_port')) def.port = savedPort;
+          if (localStorage.getItem('growie_sender_name')) def.name = savedName;
+        }
+      }
+      return accounts.filter(a => a && a.email && !a.email.includes('growie.io'));
+    } catch (e) {
+      const savedUser = localStorage.getItem('growie_smtp_user') || 'isadora@pluriecomunicacao.com.br';
       return [
         {
           id: 'smtp_1',
-          name: 'Isadora Rossetto | Head de Vendas Growie',
-          email: 'isadora@pluriecomunicacao.com.br',
+          name: localStorage.getItem('growie_sender_name') || 'Isadora Rossetto | Head de Vendas Growie',
+          email: savedUser,
           host: localStorage.getItem('growie_smtp_host') || 'smtp.hostinger.com',
           port: localStorage.getItem('growie_smtp_port') || '465',
-          security: (localStorage.getItem('growie_smtp_security') as any) || 'ssl',
-          user: localStorage.getItem('growie_smtp_user') || 'isadora@pluriecomunicacao.com.br',
+          security: 'ssl',
+          user: savedUser,
           pass: localStorage.getItem('growie_smtp_pass') || '$chirmerS20',
           isDefault: true
-        },
-        {
-          id: 'smtp_2',
-          name: 'Comercial Growie Enterprise',
-          email: 'isadora@growie.io',
-          host: 'smtp.hostinger.com',
-          port: '465',
-          security: 'ssl',
-          user: 'isadora@growie.io',
-          pass: '$chirmerS20',
-          isDefault: false
         }
       ];
-    } catch (e) {
-      return [];
     }
   },
   saveSmtpAccounts: (accounts: SmtpAccount[], tenantId: string = 't1'): void => {

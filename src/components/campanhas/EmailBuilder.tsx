@@ -134,15 +134,26 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
     return def ? def.id : '';
   });
 
-  const selectedAccount: SmtpAccount = smtpAccounts.find(a => a.id === selectedAccountId) || smtpAccounts[0] || {
+  useEffect(() => {
+    const latestAccounts = apiService.getSmtpAccounts(currentTenant?.id);
+    if (Array.isArray(latestAccounts) && latestAccounts.length > 0) {
+      setSmtpAccounts(latestAccounts);
+      if (!selectedAccountId || !latestAccounts.some(a => a.id === selectedAccountId)) {
+        const def = latestAccounts.find(a => a.isDefault) || latestAccounts[0];
+        if (def) setSelectedAccountId(def.id);
+      }
+    }
+  }, [currentTenant?.id]);
+
+  const selectedAccount: SmtpAccount = smtpAccounts.find(a => a.id === selectedAccountId) || smtpAccounts.find(a => a.isDefault) || smtpAccounts[0] || {
     id: 'default',
-    name: 'Isadora Rossetto | Head de Vendas Growie',
-    email: 'isadora@pluriecomunicacao.com.br',
-    host: 'smtp.hostinger.com',
-    port: '465',
+    name: localStorage.getItem('growie_sender_name') || 'Isadora Rossetto | Head de Vendas Growie',
+    email: localStorage.getItem('growie_smtp_user') || 'isadora@pluriecomunicacao.com.br',
+    host: localStorage.getItem('growie_smtp_host') || 'smtp.hostinger.com',
+    port: localStorage.getItem('growie_smtp_port') || '465',
     security: 'ssl',
-    user: 'isadora@pluriecomunicacao.com.br',
-    pass: '$chirmerS20'
+    user: localStorage.getItem('growie_smtp_user') || 'isadora@pluriecomunicacao.com.br',
+    pass: localStorage.getItem('growie_smtp_pass') || '$chirmerS20'
   };
 
   const [testLoginStatus, setTestLoginStatus] = useState<{ loading: boolean; success?: boolean; message?: string }>({ loading: false });
