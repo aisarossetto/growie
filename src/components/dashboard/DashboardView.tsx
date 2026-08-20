@@ -114,15 +114,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     );
   };
 
-  const activeTasks = taskList.filter((t) => {
-    const matchesUser = taskMemberFilter === 'all' || t.assignedUserId === taskMemberFilter;
-    return matchesUser && t.status !== 'concluida' && !t.completed;
-  });
+  const sortTasksByUrgency = (tasksList: TaskItem[]) => {
+    return [...tasksList].sort((a, b) => {
+      const dateA = a.dueDate || '9999-12-31';
+      const dateB = b.dueDate || '9999-12-31';
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
 
-  const archivedTasks = taskList.filter((t) => {
-    const matchesUser = taskMemberFilter === 'all' || t.assignedUserId === taskMemberFilter;
-    return matchesUser && (t.status === 'concluida' || t.completed);
-  });
+      const timeA = a.dueTime || '23:59';
+      const timeB = b.dueTime || '23:59';
+      if (timeA !== timeB) return timeA.localeCompare(timeB);
+
+      const priorityWeight: Record<string, number> = { 'Alta': 1, 'Média': 2, 'Baixa': 3 };
+      return (priorityWeight[a.priority] || 2) - (priorityWeight[b.priority] || 2);
+    });
+  };
+
+  const activeTasks = sortTasksByUrgency(
+    taskList.filter((t) => {
+      const matchesUser = taskMemberFilter === 'all' || (t.assignedUserIds && t.assignedUserIds.includes(taskMemberFilter)) || t.assignedUserId === taskMemberFilter;
+      return matchesUser && t.status !== 'concluida' && !t.completed;
+    })
+  );
+
+  const archivedTasks = sortTasksByUrgency(
+    taskList.filter((t) => {
+      const matchesUser = taskMemberFilter === 'all' || (t.assignedUserIds && t.assignedUserIds.includes(taskMemberFilter)) || t.assignedUserId === taskMemberFilter;
+      return matchesUser && (t.status === 'concluida' || t.completed);
+    })
+  );
 
   const displayTasks = taskTab === 'active' ? activeTasks : archivedTasks;
 
