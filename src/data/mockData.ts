@@ -17,7 +17,7 @@ import {
 } from '../types';
 
 export const mockTenants: Tenant[] = [
-  { id: '1', name: 'Growie Enterprise - Matriz', plan: 'Enterprise', membersCount: 2 }
+  { id: 't1', name: 'Growie Enterprise - Matriz', plan: 'Enterprise', membersCount: 2 }
 ];
 
 export const defaultUsersList: User[] = [

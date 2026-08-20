@@ -147,7 +147,7 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
 
   const selectedAccount: SmtpAccount = smtpAccounts.find(a => a.id === selectedAccountId) || smtpAccounts.find(a => a.isDefault) || smtpAccounts[0] || {
     id: 'default',
-    name: localStorage.getItem('growie_sender_name') || 'Isadora Rossetto | Head de Vendas Growie',
+    name: localStorage.getItem('growie_sender_name') || 'Isadora Rossetto | Growie',
     email: localStorage.getItem('growie_smtp_user') || 'isadora@pluriecomunicacao.com.br',
     host: localStorage.getItem('growie_smtp_host') || 'smtp.hostinger.com',
     port: localStorage.getItem('growie_smtp_port') || '465',

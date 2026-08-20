@@ -118,20 +118,47 @@ export const apiService = {
     } catch (e) {}
   },
 
-  // Leads (STRICTLY ISOLATED PER TENANT WORKSPACE)
+  // Leads (STRICTLY ISOLATED PER TENANT WORKSPACE WITH AUTOMATIC KEY RECOVERY)
   getLeads: (tenantId: string = 't1'): Lead[] => {
     try {
-      const data = localStorage.getItem(getTenantKey(BASE_KEYS.LEADS, tenantId));
+      const safeId = (tenantId && typeof tenantId === 'string' && tenantId.trim().length > 0) ? tenantId.trim() : 't1';
+      const primaryKey = getTenantKey(BASE_KEYS.LEADS, safeId);
+      const data = localStorage.getItem(primaryKey);
       if (data !== null) {
-        return JSON.parse(data);
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-      // Migrate old global leads to default tenant t1 if available
+
+      // Check fallback workspace key '1'
+      const data1 = localStorage.getItem(getTenantKey(BASE_KEYS.LEADS, '1'));
+      if (data1 !== null) {
+        const parsed = JSON.parse(data1);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          localStorage.setItem(primaryKey, JSON.stringify(parsed));
+          return parsed;
+        }
+      }
+
+      // Check fallback workspace key 't1'
+      const dataT1 = localStorage.getItem(getTenantKey(BASE_KEYS.LEADS, 't1'));
+      if (dataT1 !== null) {
+        const parsed = JSON.parse(dataT1);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          localStorage.setItem(primaryKey, JSON.stringify(parsed));
+          return parsed;
+        }
+      }
+
+      // Check old global leads v10
       const oldData = localStorage.getItem('growie_app_leads_v10');
-      if (oldData !== null && tenantId === 't1') {
+      if (oldData !== null) {
         const parsed = JSON.parse(oldData);
-        localStorage.setItem(getTenantKey(BASE_KEYS.LEADS, tenantId), JSON.stringify(parsed));
-        return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          localStorage.setItem(primaryKey, JSON.stringify(parsed));
+          return parsed;
+        }
       }
+
       return [];
     } catch (e) {
       return [];
@@ -139,7 +166,12 @@ export const apiService = {
   },
   saveLeads: (leads: Lead[], tenantId: string = 't1'): void => {
     try {
-      localStorage.setItem(getTenantKey(BASE_KEYS.LEADS, tenantId), JSON.stringify(leads));
+      const safeId = (tenantId && typeof tenantId === 'string' && tenantId.trim().length > 0) ? tenantId.trim() : 't1';
+      const cleanList = Array.isArray(leads) ? leads.filter(Boolean) : [];
+      localStorage.setItem(getTenantKey(BASE_KEYS.LEADS, safeId), JSON.stringify(cleanList));
+      // Save synchronously under t1 and 1 as well to guarantee recovery
+      localStorage.setItem(getTenantKey(BASE_KEYS.LEADS, 't1'), JSON.stringify(cleanList));
+      localStorage.setItem(getTenantKey(BASE_KEYS.LEADS, '1'), JSON.stringify(cleanList));
     } catch (e) {}
   },
 
@@ -463,7 +495,7 @@ export const apiService = {
       const savedPass = localStorage.getItem('growie_smtp_pass') || '$chirmerS20';
       const savedHost = localStorage.getItem('growie_smtp_host') || 'smtp.hostinger.com';
       const savedPort = localStorage.getItem('growie_smtp_port') || '465';
-      const savedName = localStorage.getItem('growie_sender_name') || 'Isadora Rossetto | Head de Vendas Growie';
+      const savedName = localStorage.getItem('growie_sender_name') || 'Isadora Rossetto | Growie';
 
       if (accounts.length === 0) {
         accounts = [
@@ -482,14 +514,12 @@ export const apiService = {
       } else {
         const def = accounts.find(a => a.isDefault) || accounts[0];
         if (def) {
-          if (localStorage.getItem('growie_smtp_user')) {
-            def.user = savedUser;
-            def.email = savedUser;
-          }
-          if (localStorage.getItem('growie_smtp_pass')) def.pass = savedPass;
-          if (localStorage.getItem('growie_smtp_host')) def.host = savedHost;
-          if (localStorage.getItem('growie_smtp_port')) def.port = savedPort;
-          if (localStorage.getItem('growie_sender_name')) def.name = savedName;
+          def.user = savedUser;
+          def.email = savedUser;
+          def.pass = savedPass;
+          def.host = savedHost;
+          def.port = savedPort;
+          def.name = savedName;
         }
       }
       return accounts.filter(a => a && a.email && !a.email.includes('growie.io'));
@@ -498,7 +528,7 @@ export const apiService = {
       return [
         {
           id: 'smtp_1',
-          name: localStorage.getItem('growie_sender_name') || 'Isadora Rossetto | Head de Vendas Growie',
+          name: localStorage.getItem('growie_sender_name') || 'Isadora Rossetto | Growie',
           email: savedUser,
           host: localStorage.getItem('growie_smtp_host') || 'smtp.hostinger.com',
           port: localStorage.getItem('growie_smtp_port') || '465',
