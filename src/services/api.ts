@@ -90,14 +90,22 @@ export const apiService = {
   // Tenants / Workspaces (Global catalog of workspaces)
   getTenants: (): Tenant[] => {
     try {
+      const realUsersCount = apiService.getUsers().length || 2;
       const data = localStorage.getItem(BASE_KEYS.TENANTS);
+      let list: Tenant[] = [];
       if (data !== null) {
         const parsed = JSON.parse(data);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter(Boolean);
+          list = parsed.filter(Boolean);
         }
       }
-      return mockTenants;
+      if (list.length === 0) {
+        list = [...mockTenants];
+      }
+      return list.map(t => ({
+        ...t,
+        membersCount: realUsersCount
+      }));
     } catch (e) {
       return mockTenants;
     }

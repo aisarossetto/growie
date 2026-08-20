@@ -319,11 +319,19 @@ export function App() {
       }
     }));
 
-    setLeads((prev) => [...createdList, ...prev]);
+    setLeads((prev) => {
+      const next = [...createdList, ...prev];
+      if (currentTenant?.id) apiService.saveLeads(next, currentTenant.id);
+      return next;
+    });
   };
 
   const handleUpdateLead = (updated: Lead) => {
-    setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+    setLeads((prev) => {
+      const next = prev.map((l) => (l.id === updated.id ? updated : l));
+      if (currentTenant?.id) apiService.saveLeads(next, currentTenant.id);
+      return next;
+    });
 
     // Auto sync to Calendar if meeting scheduled!
     if (updated.timeline.meetingScheduled) {
@@ -338,23 +346,33 @@ export function App() {
         syncedWithGoogle: true,
         type: 'reuniao'
       };
-      setEvents((prev) => [newEvt, ...prev]);
+      setEvents((prev) => {
+        const next = [newEvt, ...prev];
+        if (currentTenant?.id) apiService.saveEvents(next, currentTenant.id);
+        return next;
+      });
     }
   };
 
   const handleBulkUpdateLeads = (leadIds: string[], updates: Partial<Lead>) => {
-    setLeads((prev) =>
-      prev.map((l) => (leadIds.includes(l.id) ? { ...l, ...updates } : l))
-    );
+    setLeads((prev) => {
+      const next = prev.map((l) => (leadIds.includes(l.id) ? { ...l, ...updates } : l));
+      if (currentTenant?.id) apiService.saveLeads(next, currentTenant.id);
+      return next;
+    });
   };
 
   const handleDeleteLeads = (ids: string[]) => {
-    setLeads((prev) => prev.filter((l) => !ids.includes(l.id)));
+    setLeads((prev) => {
+      const next = prev.filter((l) => !ids.includes(l.id));
+      if (currentTenant?.id) apiService.saveLeads(next, currentTenant.id);
+      return next;
+    });
   };
 
   const handleSyncLeadOpenedEmail = (leadId: string) => {
-    setLeads((prev) =>
-      prev.map((l) => {
+    setLeads((prev) => {
+      const next = prev.map((l) => {
         if (l.id === leadId) {
           return {
             ...l,
@@ -366,35 +384,53 @@ export function App() {
           };
         }
         return l;
-      })
-    );
+      });
+      if (currentTenant?.id) apiService.saveLeads(next, currentTenant.id);
+      return next;
+    });
   };
 
   // Dashboard Task Handlers
   const handleToggleTaskComplete = (id: string) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed, status: !t.completed ? 'concluida' : 'em_espera' } : t))
-    );
+    setTasks((prev) => {
+      const next = prev.map((t) => (t.id === id ? { ...t, completed: !t.completed, status: (!t.completed ? 'concluida' : 'em_espera') as any } : t));
+      if (currentTenant?.id) apiService.saveTasks(next, currentTenant.id);
+      return next;
+    });
   };
 
   const handleAddTask = (task: TaskItem) => {
-    setTasks((prev) => [task, ...prev]);
+    setTasks((prev) => {
+      const next = [task, ...prev];
+      if (currentTenant?.id) apiService.saveTasks(next, currentTenant.id);
+      return next;
+    });
   };
 
   // Kanban Handlers
   const handleMoveDeal = (dealId: string, newStageId: KanbanStageId) => {
-    setDeals((prev) =>
-      prev.map((d) => (d.id === dealId ? { ...d, stageId: newStageId } : d))
-    );
+    setDeals((prev) => {
+      const next = prev.map((d) => (d.id === dealId ? { ...d, stageId: newStageId } : d));
+      if (currentTenant?.id) apiService.saveDeals(next, currentTenant.id);
+      return next;
+    });
   };
 
   const handleAddDeal = (deal: DealCard) => {
-    setDeals((prev) => [deal, ...prev]);
+    setDeals((prev) => {
+      const next = [deal, ...prev];
+      if (currentTenant?.id) apiService.saveDeals(next, currentTenant.id);
+      return next;
+    });
   };
 
   // Campaign Handlers
   const handleAddEmailCampaign = (c: EmailCampaign) => {
-    setEmailCampaigns((prev) => [c, ...prev]);
+    setEmailCampaigns((prev) => {
+      const next = [c, ...prev];
+      if (currentTenant?.id) apiService.saveEmailCampaigns(next, currentTenant.id);
+      return next;
+    });
   };
 
   const handleToggleMetaStatus = (id: string) => {

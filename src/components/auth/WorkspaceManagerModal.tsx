@@ -167,7 +167,7 @@ export const WorkspaceManagerModal: React.FC<WorkspaceManagerModalProps> = ({
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">Plano {t.plan} • {t.membersCount} membros • Leads Isolados</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Plano {t.plan} • {t.membersCount || 2} { (t.membersCount || 2) === 1 ? 'membro' : 'membros'} • Leads Isolados</p>
                       </div>
                     </div>
 
