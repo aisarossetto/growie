@@ -148,6 +148,9 @@ export interface ClientItem {
   monthlyValue: number;
   status: 'Ativo' | 'Inativo' | 'Em Pausa';
   startDate: string;
+  billingFrequency?: 'mensal' | 'anual' | 'semestral' | 'pontual';
+  paymentDay?: number;
+  exactPaymentDate?: string;
 }
 
 export interface ColumnMapping {

@@ -28,6 +28,9 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   const [service, setService] = useState('');
   const [monthlyValue, setMonthlyValue] = useState('15000');
   const [status, setStatus] = useState<ClientItem['status']>('Ativo');
+  const [billingFrequency, setBillingFrequency] = useState<'mensal' | 'anual' | 'semestral' | 'pontual'>('mensal');
+  const [paymentDay, setPaymentDay] = useState<number>(20);
+  const [exactPaymentDate, setExactPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [notification, setNotification] = useState<string | null>(null);
 
   const startEdit = (c: ClientItem) => {
@@ -40,6 +43,9 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     setService(c.service);
     setMonthlyValue(c.monthlyValue.toString());
     setStatus(c.status);
+    setBillingFrequency(c.billingFrequency || 'mensal');
+    setPaymentDay(c.paymentDay || 20);
+    setExactPaymentDate(c.exactPaymentDate || new Date().toISOString().split('T')[0]);
     setIsFormOpen(true);
   };
 
@@ -53,6 +59,9 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     setService('');
     setMonthlyValue('15000');
     setStatus('Ativo');
+    setBillingFrequency('mensal');
+    setPaymentDay(20);
+    setExactPaymentDate(new Date().toISOString().split('T')[0]);
     setIsFormOpen(false);
   };
 
@@ -70,9 +79,12 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
         phone,
         service,
         monthlyValue: parseFloat(monthlyValue) || 0,
-        status
+        status,
+        billingFrequency,
+        paymentDay: Number(paymentDay) || 20,
+        exactPaymentDate
       });
-      setNotification(`Dados do cliente "${company}" atualizados com sucesso!`);
+      setNotification(`Dados do cliente "${company}" atualizados e faturamento sincronizado no Financeiro!`);
     } else {
       const newClient: ClientItem = {
         id: 'cli_' + Date.now(),
@@ -84,13 +96,16 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
         service: service || 'Contrato SaaS Enterprise',
         monthlyValue: parseFloat(monthlyValue) || 0,
         status,
-        startDate: new Date().toISOString().split('T')[0]
+        startDate: new Date().toISOString().split('T')[0],
+        billingFrequency,
+        paymentDay: Number(paymentDay) || 20,
+        exactPaymentDate
       };
       onAddClient(newClient);
-      setNotification(`Cliente "${company}" cadastrado com sucesso na carteira!`);
+      setNotification(`Cliente "${company}" cadastrado e faturamento lançado automaticamente no Financeiro!`);
     }
 
-    setTimeout(() => setNotification(null), 3000);
+    setTimeout(() => setNotification(null), 4000);
     resetForm();
   };
 
@@ -226,7 +241,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Valor Mensal Recorrente (R$)</label>
+              <label className="block font-bold text-slate-700 mb-1">Valor do Contrato (R$)</label>
               <input
                 type="number"
                 value={monthlyValue}
@@ -234,6 +249,53 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                 className="w-full p-2.5 bg-growie-bg border border-slate-200 rounded-xl font-mono font-bold text-growie-purple focus:border-growie-purple"
               />
             </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Frequência do Contrato</label>
+              <select
+                value={billingFrequency}
+                onChange={(e) => setBillingFrequency(e.target.value as any)}
+                className="w-full p-2.5 bg-growie-bg border border-slate-200 rounded-xl font-semibold text-growie-dark focus:border-growie-purple"
+              >
+                <option value="mensal">📅 Mensal (Recorrente Todo Mês)</option>
+                <option value="anual">🗓️ Anual (Recorrente Todo Ano)</option>
+                <option value="semestral">🔄 Semestral (A Cada 6 Meses)</option>
+                <option value="pontual">⚡ Pontual / Avulso</option>
+              </select>
+            </div>
+
+            {billingFrequency === 'mensal' ? (
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Dia do Pagamento no Mês</label>
+                <select
+                  value={paymentDay}
+                  onChange={(e) => setPaymentDay(Number(e.target.value))}
+                  className="w-full p-2.5 bg-growie-bg border border-slate-200 rounded-xl font-semibold text-growie-purple focus:border-growie-purple"
+                >
+                  <option value={5}>Todo dia 5</option>
+                  <option value={10}>Todo dia 10</option>
+                  <option value={15}>Todo dia 15</option>
+                  <option value={20}>Todo dia 20</option>
+                  <option value={25}>Todo dia 25</option>
+                  <option value={30}>Todo dia 30</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1)
+                    .filter((d) => ![5, 10, 15, 20, 25, 30].includes(d))
+                    .map((d) => (
+                      <option key={d} value={d}>Todo dia {d}</option>
+                    ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Data Exata do Pagamento</label>
+                <input
+                  type="date"
+                  value={exactPaymentDate}
+                  onChange={(e) => setExactPaymentDate(e.target.value)}
+                  className="w-full p-2.5 bg-growie-bg border border-slate-200 rounded-xl font-semibold text-growie-purple focus:border-growie-purple"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block font-bold text-slate-700 mb-1">Status do Contrato</label>
@@ -249,20 +311,26 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={resetForm}
-              className="px-4 py-2 rounded-xl text-slate-600 font-semibold hover:bg-slate-100"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 rounded-xl bg-growie-purple text-white font-extrabold shadow hover:bg-purple-800 flex items-center gap-1.5"
-            >
-              <Save size={14} /> {editingClient ? 'Salvar Dados do Cliente' : 'Cadastrar Cliente'}
-            </button>
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+            <p className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
+              <CreditCard size={13} className="text-growie-purple" />
+              <span>Ao salvar, este faturamento é lançado <strong>automaticamente</strong> na página do Financeiro!</span>
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="px-4 py-2 rounded-xl text-slate-600 font-semibold hover:bg-slate-100"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2 rounded-xl bg-growie-purple text-white font-extrabold shadow hover:bg-purple-800 flex items-center gap-1.5"
+              >
+                <Save size={14} /> {editingClient ? 'Salvar Dados do Cliente' : 'Cadastrar Cliente'}
+              </button>
+            </div>
           </div>
         </form>
       )}
@@ -288,7 +356,8 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
               <th className="py-3.5 px-4">CNPJ / CPF</th>
               <th className="py-3.5 px-4">Contato Principal</th>
               <th className="py-3.5 px-4">Serviço Contratado</th>
-              <th className="py-3.5 px-4 font-mono">Valor Mensal (R$)</th>
+              <th className="py-3.5 px-4">Cobrança & Vencimento</th>
+              <th className="py-3.5 px-4 font-mono">Valor (R$)</th>
               <th className="py-3.5 px-4">Status</th>
               <th className="py-3.5 px-4 text-right">Ação</th>
             </tr>
@@ -296,7 +365,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
           <tbody className="divide-y divide-slate-100">
             {filteredClients.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-slate-400 text-xs font-semibold">
+                <td colSpan={8} className="py-12 text-center text-slate-400 text-xs font-semibold">
                   Nenhum cliente cadastrado na carteira. Clique em "+ Adicionar Novo Cliente" para cadastrar seus contratos.
                 </td>
               </tr>
@@ -319,6 +388,23 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
 
                   <td className="py-3.5 px-4 font-semibold text-growie-purple">
                     {c.service}
+                  </td>
+
+                  <td className="py-3.5 px-4">
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-slate-700 block">
+                        {(!c.billingFrequency || c.billingFrequency === 'mensal')
+                          ? `📅 Mensal (Todo dia ${c.paymentDay || 20})`
+                          : c.billingFrequency === 'anual'
+                          ? `🗓️ Anual (${c.exactPaymentDate || 'Data exata'})`
+                          : c.billingFrequency === 'semestral'
+                          ? `🔄 Semestral (${c.exactPaymentDate || 'Data exata'})`
+                          : `⚡ Pontual (${c.exactPaymentDate || 'Data exata'})`}
+                      </span>
+                      <span className="inline-block text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-purple-50 text-growie-purple border border-purple-100">
+                        ⚡ Lançado no Financeiro
+                      </span>
+                    </div>
                   </td>
 
                   <td className="py-3.5 px-4 font-mono font-extrabold text-emerald-600">

@@ -328,17 +328,90 @@ export function App() {
     });
   };
 
+  // Helper to create / sync Revenue Entry from Client Contract
+  const createOrUpdateRevenueFromClient = (client: ClientItem): RevenueEntry => {
+    const today = new Date();
+    const currentMonthStr = today.toISOString().slice(0, 7);
+
+    let formattedPaymentDate = '';
+    let dueDate = '';
+
+    if (!client.billingFrequency || client.billingFrequency === 'mensal') {
+      const day = client.paymentDay || 20;
+      formattedPaymentDate = `Todo dia ${day}`;
+      const dayStr = day < 10 ? `0${day}` : `${day}`;
+      dueDate = `${currentMonthStr}-${dayStr}`;
+    } else {
+      dueDate = client.exactPaymentDate || new Date().toISOString().split('T')[0];
+      const dateParts = dueDate.split('-');
+      const day = dateParts[2] || '01';
+      const month = dateParts[1] || '01';
+      const freqLabel = client.billingFrequency === 'anual' ? 'Anual' : client.billingFrequency === 'semestral' ? 'Semestral' : 'Pontual';
+      formattedPaymentDate = `Dia ${day}/${month} (${freqLabel})`;
+    }
+
+    return {
+      id: 'rev_cli_' + client.id,
+      clientName: client.company,
+      serviceName: `${client.service || 'Contrato Recorrente'} (${client.billingFrequency === 'anual' ? 'Anual' : client.billingFrequency === 'semestral' ? 'Semestral' : client.billingFrequency === 'pontual' ? 'Pontual' : 'Mensal'})`,
+      amount: client.monthlyValue,
+      paymentDate: formattedPaymentDate,
+      paymentMethod: 'Boleto',
+      status: client.status === 'Ativo' ? 'Em Espera' : 'Pago',
+      month: currentMonthStr,
+      dueDate,
+      isBoletoGenerated: true
+    };
+  };
+
   // Client Handlers
   const handleAddClient = (newClient: ClientItem) => {
-    setClients((prev) => [newClient, ...prev]);
+    setClients((prev) => {
+      const next = [newClient, ...prev];
+      if (currentTenant?.id) apiService.saveClients(next, currentTenant.id);
+      return next;
+    });
+
+    // Auto-launch Revenue Entry into Financeiro
+    const revEntry = createOrUpdateRevenueFromClient(newClient);
+    setRevenues((prev) => {
+      const filtered = prev.filter((r) => r.id !== revEntry.id);
+      const nextRevenues = [revEntry, ...filtered];
+      if (currentTenant?.id) apiService.saveRevenues(nextRevenues, currentTenant.id);
+      return nextRevenues;
+    });
   };
 
   const handleUpdateClient = (updatedClient: ClientItem) => {
-    setClients((prev) => prev.map((c) => (c.id === updatedClient.id ? updatedClient : c)));
+    setClients((prev) => {
+      const next = prev.map((c) => (c.id === updatedClient.id ? updatedClient : c));
+      if (currentTenant?.id) apiService.saveClients(next, currentTenant.id);
+      return next;
+    });
+
+    // Auto-sync Revenue Entry in Financeiro
+    const revEntry = createOrUpdateRevenueFromClient(updatedClient);
+    setRevenues((prev) => {
+      const filtered = prev.filter((r) => r.id !== revEntry.id);
+      const nextRevenues = [revEntry, ...filtered];
+      if (currentTenant?.id) apiService.saveRevenues(nextRevenues, currentTenant.id);
+      return nextRevenues;
+    });
   };
 
   const handleDeleteClient = (id: string) => {
-    setClients((prev) => prev.filter((c) => c.id !== id));
+    setClients((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      if (currentTenant?.id) apiService.saveClients(next, currentTenant.id);
+      return next;
+    });
+
+    // Remove associated Revenue entry
+    setRevenues((prev) => {
+      const nextRevenues = prev.filter((r) => r.id !== 'rev_cli_' + id);
+      if (currentTenant?.id) apiService.saveRevenues(nextRevenues, currentTenant.id);
+      return nextRevenues;
+    });
   };
 
   // Workspace / Tenant Handlers
