@@ -28,6 +28,7 @@ import * as XLSX from 'xlsx';
 import { Lead, LeadCompanySectorContact, LeadGroup } from '../../types';
 
 import { checkLeadDuplicate } from '../../utils/leadDuplicateDetector';
+import { apiService } from '../../services/api';
 
 interface MassLeadImportModalProps {
   isOpen: boolean;
@@ -771,6 +772,19 @@ export const MassLeadImportModal: React.FC<MassLeadImportModalProps> = ({
                         if (!selectedDestinationGroups.includes(formatted)) {
                           setSelectedDestinationGroups([...selectedDestinationGroups, formatted]);
                         }
+                        try {
+                          const latestGroups = apiService.getLeadGroups();
+                          if (!latestGroups.some((g) => g.name === formatted)) {
+                            const newGroupObj: LeadGroup = {
+                              id: 'lg_' + Date.now(),
+                              name: formatted,
+                              description: 'Pasta criada no Importador de Leads',
+                              color: 'purple',
+                              leadIds: []
+                            };
+                            apiService.saveLeadGroups([...latestGroups, newGroupObj]);
+                          }
+                        } catch (e) {}
                         setNewCustomFolderName('');
                       }
                     }
@@ -788,6 +802,19 @@ export const MassLeadImportModal: React.FC<MassLeadImportModalProps> = ({
                       if (!selectedDestinationGroups.includes(formatted)) {
                         setSelectedDestinationGroups([...selectedDestinationGroups, formatted]);
                       }
+                      try {
+                        const latestGroups = apiService.getLeadGroups();
+                        if (!latestGroups.some((g) => g.name === formatted)) {
+                          const newGroupObj: LeadGroup = {
+                            id: 'lg_' + Date.now(),
+                            name: formatted,
+                            description: 'Pasta criada no Importador de Leads',
+                            color: 'purple',
+                            leadIds: []
+                          };
+                          apiService.saveLeadGroups([...latestGroups, newGroupObj]);
+                        }
+                      } catch (e) {}
                       setNewCustomFolderName('');
                     }
                   }}

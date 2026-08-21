@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Filter, RefreshCw, Flame, SlidersHorizontal } from 'lucide-react';
+import { Search, Filter, RefreshCw, Flame, SlidersHorizontal, Folder } from 'lucide-react';
 import { LeadSource } from '../../types';
 
 interface LeadFiltersProps {
@@ -90,6 +90,44 @@ export const LeadFilters: React.FC<LeadFiltersProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Dynamic Folder Quick Selector Bar */}
+      {leadGroups.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-2 border-t border-slate-100 font-sans">
+          <span className="text-[11px] font-extrabold text-growie-purple uppercase tracking-wider shrink-0 flex items-center gap-1">
+            <Folder size={14} className="text-growie-purple" /> Pastas Ativas:
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedGroup('')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all border ${
+              !selectedGroup
+                ? 'bg-growie-purple text-white border-growie-purple shadow-xs font-extrabold'
+                : 'bg-purple-50/50 text-slate-600 border-slate-200 hover:bg-purple-100'
+            }`}
+          >
+            Todas as Pastas ({leadGroups.length})
+          </button>
+
+          {leadGroups.map((g) => {
+            const isSelected = selectedGroup === g.id || selectedGroup === g.name;
+            return (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => setSelectedGroup(isSelected ? '' : g.id)}
+                className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 border ${
+                  isSelected
+                    ? 'bg-growie-purple text-white border-growie-purple shadow-xs font-extrabold'
+                    : 'bg-purple-50/70 text-growie-purple border-purple-200 hover:bg-purple-100'
+                }`}
+              >
+                <span>📁 {g.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Advanced Select Filters Row */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-slate-100">

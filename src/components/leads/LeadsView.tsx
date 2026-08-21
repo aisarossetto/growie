@@ -705,7 +705,34 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         defaultFolderName={preselectedFolderForImport}
         onImportLeads={(importedLeads) => {
           onAddLeads(importedLeads);
-          setNotification(`${importedLeads.length} novos leads foram importados com sucesso para a base!`);
+
+          // Synchronize any new lead groups/folders created during mass import
+          const latestGroups = apiService.getLeadGroups();
+          const newFolders: LeadGroup[] = [];
+
+          importedLeads.forEach((l) => {
+            (l.groups || []).forEach((gName) => {
+              if (
+                gName &&
+                !latestGroups.some((g) => g.name === gName || g.id === gName) &&
+                !newFolders.some((nf) => nf.name === gName)
+              ) {
+                newFolders.push({
+                  id: 'lg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+                  name: gName,
+                  description: 'Pasta criada durante Importação em Massa de Leads',
+                  color: 'purple',
+                  leadIds: []
+                });
+              }
+            });
+          });
+
+          const mergedGroups = [...latestGroups, ...newFolders];
+          setLeadGroups(mergedGroups);
+          apiService.saveLeadGroups(mergedGroups);
+
+          setNotification(`${importedLeads.length} novos leads foram importados com sucesso e vinculados às suas respectivas pastas!`);
           setTimeout(() => setNotification(null), 4000);
           setPreselectedFolderForImport(undefined);
         }}
@@ -766,9 +793,17 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
           setTimeout(() => setNotification(null), 3000);
         }}
         onDeleteGroup={(groupId) => {
-          setLeadGroups((prev) => prev.filter((g) => g.id !== groupId));
-          apiService.saveLeadGroups(leadGroups.filter((g) => g.id !== groupId));
-          setNotification(`Pasta excluída com sucesso!`);
+          const targetGroup = leadGroups.find((g) => g.id === groupId);
+          const updatedGroups = leadGroups.filter((g) => g.id !== groupId);
+
+          setLeadGroups(updatedGroups);
+          apiService.saveLeadGroups(updatedGroups);
+
+          if (selectedGroup === groupId || (targetGroup && selectedGroup === targetGroup.name)) {
+            setSelectedGroup('');
+          }
+
+          setNotification(`Pasta "${targetGroup?.name || 'selecionada'}" excluída com sucesso!`);
           setTimeout(() => setNotification(null), 3000);
         }}
         onOpenMassImportForFolder={(folderName) => {
