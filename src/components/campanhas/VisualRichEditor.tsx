@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Bold, Italic, Underline, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Bold, Italic, Underline, Image as ImageIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify, Type, Palette } from 'lucide-react';
 
 interface VisualRichEditorProps {
   value: string;
@@ -9,6 +9,53 @@ interface VisualRichEditorProps {
   label: string;
   showVariables?: boolean;
 }
+
+// Image Optimizer: Resizes image to max 750px width and compresses JPEG to 0.78 quality
+// Keeps base64 data under 25KB so Gmail NEVER clips the email message ([Mensagem cortada])
+const compressAndResizeImage = (fileOrDataUrl: File | string, callback: (compressedDataUrl: string) => void) => {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+
+  const processImgSrc = (src: string) => {
+    img.src = src;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        callback(src);
+        return;
+      }
+
+      const maxWidth = 750;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // High quality 0.78 JPEG compression
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.78);
+      callback(compressedDataUrl);
+    };
+    img.onerror = () => callback(typeof fileOrDataUrl === 'string' ? fileOrDataUrl : '');
+  };
+
+  if (typeof fileOrDataUrl === 'string') {
+    processImgSrc(fileOrDataUrl);
+  } else {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) processImgSrc(e.target.result as string);
+    };
+    reader.readAsDataURL(fileOrDataUrl);
+  }
+};
 
 export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
   value,
@@ -21,6 +68,8 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [selectedFontSize, setSelectedFontSize] = useState('3');
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Sync internal HTML with external value prop safely
   useEffect(() => {
@@ -48,13 +97,15 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
 
   const insertImageSrc = (src: string) => {
     if (!src) return;
-    const imgHtml = `<img src="${src}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; display: block; shadow: 0 2px 8px rgba(0,0,0,0.1);" alt="Imagem do E-mail" />`;
+    compressAndResizeImage(src, (optimizedSrc) => {
+      const imgHtml = `<img src="${optimizedSrc}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; display: block; border: 1px solid #e2e8f0;" alt="Imagem do E-mail" />`;
 
-    if (editorRef.current) {
-      editorRef.current.focus();
-      document.execCommand('insertHTML', false, imgHtml);
-      handleInput();
-    }
+      if (editorRef.current) {
+        editorRef.current.focus();
+        document.execCommand('insertHTML', false, imgHtml);
+        handleInput();
+      }
+    });
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
@@ -66,12 +117,9 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
           e.preventDefault();
           const file = item.getAsFile();
           if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-              const base64Data = event.target?.result as string;
-              insertImageSrc(base64Data);
-            };
-            reader.readAsDataURL(file);
+            compressAndResizeImage(file, (optimizedSrc) => {
+              insertImageSrc(optimizedSrc);
+            });
           }
           return;
         }
@@ -82,13 +130,9 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files[0]) {
-      const file = files[0];
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64Data = event.target?.result as string;
-        insertImageSrc(base64Data);
-      };
-      reader.readAsDataURL(file);
+      compressAndResizeImage(files[0], (optimizedSrc) => {
+        insertImageSrc(optimizedSrc);
+      });
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -100,6 +144,15 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
       handleInput();
     }
   };
+
+  const colors = [
+    { label: 'Preto', color: '#1e293b' },
+    { label: 'Roxo Growie', color: '#6c5ce7' },
+    { label: 'Azul', color: '#2563eb' },
+    { label: 'Verde', color: '#10b981' },
+    { label: 'Vinho', color: '#e11d48' },
+    { label: 'Cinza', color: '#64748b' },
+  ];
 
   return (
     <div className="space-y-1.5 font-sans">
@@ -117,9 +170,10 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
       <div className={`bg-white border rounded-2xl overflow-hidden transition-all ${
         isFocused ? 'border-growie-purple ring-2 ring-growie-purple/20 shadow-md' : 'border-slate-200 shadow-card-soft'
       }`}>
-        {/* Toolbar Header */}
+        {/* Formatting Toolbar Header */}
         <div className="bg-growie-bg px-3 py-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs select-none">
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
+            {/* Font Style Controls */}
             <button
               type="button"
               onClick={() => execCmd('bold')}
@@ -147,13 +201,100 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
 
             <div className="h-4 w-px bg-slate-200 mx-1" />
 
+            {/* Font Size Selector */}
+            <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs">
+              <Type size={12} className="text-slate-400" />
+              <select
+                value={selectedFontSize}
+                onChange={(e) => {
+                  setSelectedFontSize(e.target.value);
+                  execCmd('fontSize', e.target.value);
+                }}
+                className="bg-transparent text-[11px] font-bold text-slate-700 focus:outline-none cursor-pointer"
+              >
+                <option value="2">Pequeno (12px)</option>
+                <option value="3">Normal (14px)</option>
+                <option value="4">Médio (16px)</option>
+                <option value="5">Grande (18px)</option>
+                <option value="6">Título (22px)</option>
+              </select>
+            </div>
+
+            {/* Text Alignment */}
+            <div className="flex items-center gap-0.5 bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => execCmd('justifyLeft')}
+                className="p-1 hover:bg-slate-100 rounded text-slate-600"
+                title="Alinhar à Esquerda"
+              >
+                <AlignLeft size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => execCmd('justifyCenter')}
+                className="p-1 hover:bg-slate-100 rounded text-slate-600"
+                title="Centralizar"
+              >
+                <AlignCenter size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => execCmd('justifyRight')}
+                className="p-1 hover:bg-slate-100 rounded text-slate-600"
+                title="Alinhar à Direita"
+              >
+                <AlignRight size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => execCmd('justifyFull')}
+                className="p-1 hover:bg-slate-100 rounded text-slate-600"
+                title="Justificar"
+              >
+                <AlignJustify size={12} />
+              </button>
+            </div>
+
+            {/* Text Color Picker */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowColorPicker(!showColorPicker)}
+                className="p-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs flex items-center gap-1 text-[11px] font-bold"
+                title="Cor do Texto"
+              >
+                <Palette size={13} className="text-growie-purple" /> Cor
+              </button>
+              {showColorPicker && (
+                <div className="absolute left-0 top-full mt-1 z-30 bg-white p-2 rounded-xl shadow-xl border border-slate-200 flex items-center gap-1.5 animate-in fade-in">
+                  {colors.map((c, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        execCmd('foreColor', c.color);
+                        setShowColorPicker(false);
+                      }}
+                      className="w-5 h-5 rounded-full border border-slate-300 hover:scale-110 transition-transform"
+                      style={{ backgroundColor: c.color }}
+                      title={c.label}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="h-4 w-px bg-slate-200 mx-1" />
+
+            {/* Upload Image Button */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="px-2.5 py-1 rounded-lg bg-growie-purple/10 text-growie-purple font-extrabold hover:bg-growie-purple hover:text-white transition-colors flex items-center gap-1 border border-growie-purple/20 text-[11px]"
               title="Carregar Imagem de Arquivo"
             >
-              <ImageIcon size={13} /> + Carregar Imagem
+              <ImageIcon size={13} /> + Inserir Imagem
             </button>
             <input
               type="file"

@@ -127,6 +127,60 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [sendingDelaySeconds, setSendingDelaySeconds] = useState(3);
 
+  // Saved Email Templates State & Handlers
+  const DEFAULT_TEMPLATES = [
+    {
+      id: 'tpl_plurie_1',
+      name: '🎨 Modelo Plurie Comunicação (com Imagens & Assinatura)',
+      subject: 'Olá {primeiro_nome}, como estão as estratégias de crescimento da {empresa}?',
+      content: `<div style="font-family: sans-serif; color: #1e293b; line-height: 1.6;"><p>Olá <strong>{primeiro_nome}</strong>, tudo bem?</p><p>Notamos que você atua como <strong>{cargo}</strong> na <strong>{empresa}</strong> e gostaríamos de apresentar as soluções da <strong>Plurie Comunicação</strong> para acelerar seus resultados comerciais.</p><p>Ajudamos empresas a estruturarem processos de vendas, prospecção e comunicação estratégica com tecnologia e inteligência.</p></div>`,
+      signature: `<div style="font-family: sans-serif; font-size: 12px; color: #475569; border-top: 1px solid #e2e8f0; pt: 12px; margin-top: 16px;"><p><strong>Ciany Schirmer</strong><br/>Idealizadora | Plurie Comunicação<br/>📞 (51) 99989-1575 | ✉️ oi@pluriecomunicacao.com.br<br/>🌐 pluriecomunicacao.com.br</p></div>`
+    },
+    {
+      id: 'tpl_proposta_2',
+      name: '📄 Modelo Proposta Comercial Exclusiva',
+      subject: 'Proposta Comercial Personalizada para a {empresa}',
+      content: `<div style="font-family: sans-serif; color: #1e293b; line-height: 1.6;"><p>Olá <strong>{primeiro_nome}</strong>,</p><p>Conforme conversamos, estamos enviando a proposta comercial exclusiva preparada para a <strong>{empresa}</strong>.</p><p>Qualquer dúvida, estamos 100% à disposição para agendarmos uma rápida call de alinhamento!</p></div>`,
+      signature: `<div style="font-family: sans-serif; font-size: 12px; color: #475569;"><p><strong>Plurie Comunicação</strong><br/>Atendemos Brasil, Américas e Europa<br/>🌐 pluriecomunicacao.com.br</p></div>`
+    }
+  ];
+
+  const [savedTemplates, setSavedTemplates] = useState<any[]>(() => {
+    try {
+      const local = localStorage.getItem('growie_saved_email_templates_v2');
+      if (local) return JSON.parse(local);
+    } catch (e) {}
+    return DEFAULT_TEMPLATES;
+  });
+
+  const handleSaveCurrentAsTemplate = () => {
+    const name = prompt('Digite um nome para este modelo de e-mail:', `Modelo ${new Date().toLocaleDateString('pt-BR')}`);
+    if (!name || !name.trim()) return;
+
+    const newTpl = {
+      id: 'tpl_' + Date.now(),
+      name: name.trim(),
+      subject: subject || 'Sem assunto',
+      content: content || '',
+      signature: signature || '',
+    };
+
+    const updated = [newTpl, ...savedTemplates];
+    setSavedTemplates(updated);
+    localStorage.setItem('growie_saved_email_templates_v2', JSON.stringify(updated));
+    alert(`Modelo "${name.trim()}" salvo com sucesso! Você pode carregá-lo a qualquer momento.`);
+  };
+
+  const handleSelectTemplate = (templateId: string) => {
+    const tpl = savedTemplates.find((t) => t.id === templateId);
+    if (!tpl) return;
+    if (confirm(`Deseja carregar o modelo "${tpl.name}"? Isso preencherá o assunto, mensagem e assinatura.`)) {
+      setSubject(tpl.subject || '');
+      setContent(tpl.content || '');
+      setSignature(tpl.signature || '');
+    }
+  };
+
   // Registered Smtp Accounts State
   const [smtpAccounts, setSmtpAccounts] = useState<SmtpAccount[]>(() => apiService.getSmtpAccounts(currentTenant?.id));
   const [selectedAccountId, setSelectedAccountId] = useState<string>(() => {
@@ -632,6 +686,38 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
                 </span>
               </div>
             )}
+
+            {/* Saved Email Templates Toolbar */}
+            <div className="p-3 bg-gradient-to-r from-purple-50 via-white to-slate-50 rounded-2xl border border-purple-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <FolderPlus size={16} className="text-growie-purple shrink-0" />
+                <span className="font-extrabold text-growie-purple text-xs shrink-0">Modelos de E-mail Salvos:</span>
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) handleSelectTemplate(e.target.value);
+                    e.target.value = '';
+                  }}
+                  className="py-1.5 px-2.5 bg-white border border-purple-300 rounded-xl font-bold text-xs text-growie-purple focus:outline-none focus:border-growie-purple cursor-pointer shadow-2xs w-full sm:w-64"
+                >
+                  <option value="">📂 Carregar Modelo Salvo ({savedTemplates.length})...</option>
+                  {savedTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      ✨ {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={handleSaveCurrentAsTemplate}
+                  className="px-3.5 py-1.5 rounded-xl bg-growie-purple text-white font-extrabold text-xs shadow-xs hover:bg-purple-800 transition-colors flex items-center gap-1.5 shrink-0"
+                >
+                  <Sparkles size={13} /> 💾 Salvar Atual como Novo Modelo
+                </button>
+              </div>
+            </div>
 
             {/* Dynamic Variables Insertion Bar */}
             <div className="p-3.5 bg-gradient-to-r from-purple-50 via-white to-purple-50/60 rounded-2xl border border-purple-200 shadow-xs space-y-2">

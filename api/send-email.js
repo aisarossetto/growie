@@ -54,9 +54,9 @@ export default async function handler(req, res) {
   const currentCmpId = campaignId || 'cmp_' + Date.now();
   const currentLeadId = leadId || 'lead_' + Date.now();
   const trackingPixelUrl = `https://growie-ruddy.vercel.app/api/track/open?campaignId=${encodeURIComponent(currentCmpId)}&leadId=${encodeURIComponent(currentLeadId)}&email=${encodeURIComponent(targetEmail)}&t=${Date.now()}`;
-  const trackingPixelTag = `<img src="${trackingPixelUrl}" width="1" height="1" style="display:none !important;width:1px !important;height:1px !important;max-height:0px !important;max-width:0px !important;opacity:0 !important;overflow:hidden !important;visibility:hidden !important;" alt="" />`;
+  const trackingPixelTag = `<div style="margin-top:15px;clear:both;"><img src="${trackingPixelUrl}" width="1" height="1" border="0" style="display:block;width:1px;height:1px;max-height:1px;max-width:1px;margin:0;padding:0;border:none;outline:none;" alt="" /></div>`;
 
-  let bodyHtml = html || (content ? `<div style="font-family: sans-serif; font-size: 14px; line-height: 1.6; color: #1e293b;"><div style="white-space: pre-wrap;">${content}</div>${signature ? `<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${signature}</div>` : ''}</div>` : `<p>${bodyText}</p>`);
+  let bodyHtml = html || (content ? `<div style="font-family: sans-serif; font-size: 14px; line-height: 1.6; color: #1e293b;"><div>${content}</div>${signature ? `<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${signature}</div>` : ''}</div>` : `<p>${bodyText}</p>`);
 
   // Ensure tracking pixel tag is attached at end of HTML
   if (!bodyHtml.includes('/api/track/open')) {
