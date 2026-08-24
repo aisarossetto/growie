@@ -897,15 +897,7 @@ export function App() {
             )
           )}
 
-          {activeTab === 'content' && (
-            <ContentStudioView
-              posts={contentPosts}
-              brandGuidelines={brandGuidelines}
-              onSaveBrandGuidelines={setBrandGuidelines}
-              onAddPost={handleAddPost}
-              onUpdatePostStatus={handleUpdatePostStatus}
-            />
-          )}
+          {/* Conteudos tab disabled por enquanto */}
 
           {activeTab === 'copilot' && (
             <GeminiCopilot onNavigateTab={setActiveTab} />

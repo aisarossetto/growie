@@ -31,9 +31,10 @@ import {
   FolderPlus,
   RefreshCw
 } from 'lucide-react';
-import { EmailCampaign, EmailOpener, Lead, User, Tenant, LeadGroup, SmtpAccount } from '../../types';
+import { Lead, EmailCampaign, EmailOpener, User, Tenant, SmtpAccount, LeadGroup } from '../../types';
 import { apiService } from '../../services/api';
 import { LeadGroupManagerModal } from '../leads/LeadGroupManagerModal';
+import { VisualRichEditor } from './VisualRichEditor';
 
 interface EmailBuilderProps {
   campaigns: EmailCampaign[];
@@ -738,28 +739,26 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1 flex items-center justify-between">
-                <span>Corpo da Mensagem do E-mail</span>
-                <span className="text-[10px] text-growie-purple font-mono font-bold">Variáveis ativas: {"{nome}"}, {"{primeiro_nome}"}, {"{empresa}"}, {"{cargo}"}</span>
-              </label>
-              <textarea
-                rows={6}
+              <VisualRichEditor
+                label="Corpo da Mensagem do E-mail"
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Olá {primeiro_nome}, tudo bem?&#10;&#10;Notamos que você atua como {cargo} na {empresa}..."
-                className="w-full p-3 bg-growie-bg border border-slate-200 rounded-xl font-medium leading-relaxed text-growie-dark focus:border-growie-purple"
+                onChange={setContent}
+                placeholder="Olá {primeiro_nome}, tudo bem? Notamos que você atua como {cargo} na {empresa}..."
+                minHeight="220px"
+                showVariables={true}
               />
             </div>
 
             {/* Signature & Attachments */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Assinatura de E-mail</label>
-                <textarea
-                  rows={3}
+                <VisualRichEditor
+                  label="Assinatura de E-mail"
                   value={signature}
-                  onChange={(e) => setSignature(e.target.value)}
-                  className="w-full p-2.5 bg-growie-bg border border-slate-200 rounded-xl font-mono text-[11px] text-slate-700 focus:border-growie-purple"
+                  onChange={setSignature}
+                  placeholder="Atenciosamente, Isadora Rossetto | Head de Vendas Growie"
+                  minHeight="120px"
+                  showVariables={false}
                 />
               </div>
 
@@ -1283,14 +1282,16 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
 
                   <div className="p-5 bg-growie-bg rounded-2xl border border-slate-200 text-slate-800 space-y-3 font-sans leading-relaxed text-xs">
                     <h5 className="font-extrabold text-growie-dark border-b border-slate-200 pb-2">Corpo da Mensagem Disparada (Substituição de Variáveis Ativa):</h5>
-                    <div className="whitespace-pre-wrap font-medium">
-                      {replaceLeadVariables(auditCampaign.content)}
-                    </div>
+                    <div 
+                      className="font-medium prose max-w-none text-xs leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: replaceLeadVariables(auditCampaign.content) }}
+                    />
 
                     {auditCampaign.signature && (
-                      <div className="pt-3 border-t border-slate-200 text-slate-600 font-mono whitespace-pre-wrap text-[11px]">
-                        {replaceLeadVariables(auditCampaign.signature)}
-                      </div>
+                      <div 
+                        className="pt-3 border-t border-slate-200 text-slate-600 font-sans text-[11px]"
+                        dangerouslySetInnerHTML={{ __html: replaceLeadVariables(auditCampaign.signature) }}
+                      />
                     )}
 
                     {auditCampaign.attachments && auditCampaign.attachments.length > 0 && (

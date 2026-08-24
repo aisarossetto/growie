@@ -70,7 +70,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'campanhas', label: 'Campanhas', icon: Megaphone, badge: null },
     { id: 'agenda', label: 'Agenda', icon: Calendar, badge: 'Google' },
     { id: 'financeiro', label: 'Financeiro', icon: DollarSign, badge: 'Sócias' },
-    { id: 'content', label: 'Conteúdos', icon: Share2, badge: 'Studio' },
     { id: 'configuracoes', label: 'Configurações', icon: Settings, badge: null },
   ];
 
