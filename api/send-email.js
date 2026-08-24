@@ -56,7 +56,11 @@ export default async function handler(req, res) {
   const trackingPixelUrl = `https://growie-ruddy.vercel.app/api/track/open?campaignId=${encodeURIComponent(currentCmpId)}&leadId=${encodeURIComponent(currentLeadId)}&email=${encodeURIComponent(targetEmail)}&t=${Date.now()}`;
   const trackingPixelTag = `<div style="margin-top:15px;clear:both;"><img src="${trackingPixelUrl}" width="1" height="1" border="0" style="display:block;width:1px;height:1px;max-height:1px;max-width:1px;margin:0;padding:0;border:none;outline:none;" alt="" /></div>`;
 
-  let bodyHtml = html || (content ? `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.4; color: #1e293b; margin: 0; padding: 0;"><style>p, div { margin: 0 0 6px 0; padding: 0; line-height: 1.4; }</style><div>${content}</div>${signature ? `<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${signature}</div>` : ''}</div>` : `<p>${bodyText}</p>`);
+  // Clean & Normalize HTML text paragraph spacing (removes double <p><br></p> gaps)
+  const cleanContent = content ? content.replace(/<(p|div)[^>]*>\s*(<br\s*\/?>|&nbsp;|\s*)*\s*<\/(p|div)>/gi, '').replace(/(<br\s*\/?>\s*){2,}/gi, '<br/>') : '';
+  const cleanSignature = signature ? signature.replace(/<(p|div)[^>]*>\s*(<br\s*\/?>|&nbsp;|\s*)*\s*<\/(p|div)>/gi, '').replace(/(<br\s*\/?>\s*){2,}/gi, '<br/>') : '';
+
+  let bodyHtml = html || (cleanContent ? `<div style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.4; color: #1e293b; margin: 0; padding: 0;"><style>p, div { margin: 0 0 8px 0 !important; padding: 0 !important; line-height: 1.4 !important; } br { line-height: 1.4 !important; }</style><div>${cleanContent}</div>${cleanSignature ? `<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${cleanSignature}</div>` : ''}</div>` : `<p style="margin:0;line-height:1.4;">${bodyText}</p>`);
 
   // Append unique invisible token to prevent Gmail thread collapsing (...)
   bodyHtml = bodyHtml + `<!-- growie_unique_token_${Date.now()}_${Math.random().toString(36).substring(2, 6)} -->`;

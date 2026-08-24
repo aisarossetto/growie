@@ -347,8 +347,8 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
           onPaste={handlePaste}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          style={{ minHeight }}
-          className="p-3.5 focus:outline-none text-growie-dark text-xs leading-normal font-sans overflow-y-auto min-h-[140px]"
+          style={{ minHeight, lineHeight: '1.4' }}
+          className="p-3.5 focus:outline-none text-growie-dark text-xs leading-snug font-sans overflow-y-auto min-h-[140px] [&>p]:mb-2 [&>div]:mb-1"
         />
       </div>
     </div>
