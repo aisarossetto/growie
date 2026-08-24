@@ -239,21 +239,45 @@ export function App() {
             });
             setTimeout(() => setLiveToastNotification(null), 6000);
 
-            // 2. Update EmailCampaigns state
-            setEmailCampaigns((prevCampaigns) =>
-              prevCampaigns.map((cmp) => {
-                if (targetCmpId && cmp.id !== targetCmpId) return cmp;
+            // 2. Update EmailCampaigns state & persist to LocalStorage
+            setEmailCampaigns((prevCampaigns) => {
+              const updatedList = prevCampaigns.map((cmp) => {
+                const matchesId = targetCmpId && cmp.id === targetCmpId;
+                const hasRecipient = (cmp.recipientLeads || []).some((r) => targetEmail && r.email.toLowerCase().trim() === targetEmail);
+
+                if (!matchesId && !hasRecipient) return cmp;
+
                 const updatedRecipients = (cmp.recipientLeads || []).map((r) => {
-                  if (targetEmail && r.email.toLowerCase().trim() === targetEmail) {
-                    return { ...r, opened: true, openedAt: evt.timestamp || new Date().toISOString(), status: 'aberto' as const };
+                  const isTarget = targetEmail && r.email.toLowerCase().trim() === targetEmail;
+                  if (isTarget) {
+                    return {
+                      ...r,
+                      opened: evt.type === 'open' ? true : r.opened,
+                      openedAt: evt.type === 'open' ? (r.openedAt || evt.timestamp || new Date().toISOString()) : r.openedAt,
+                      clicked: evt.type === 'click' ? true : r.clicked,
+                      clickedAt: evt.type === 'click' ? (r.clickedAt || evt.timestamp || new Date().toISOString()) : r.clickedAt,
+                      status: 'aberto' as const
+                    };
                   }
                   return r;
                 });
+
                 const openedCount = updatedRecipients.filter((r) => r.opened).length;
+                const clickedCount = updatedRecipients.filter((r) => r.clicked).length;
                 const openRate = updatedRecipients.length > 0 ? Math.round((openedCount / updatedRecipients.length) * 100) : cmp.openRate;
-                return { ...cmp, recipientLeads: updatedRecipients, openRate };
-              })
-            );
+                const clickRate = updatedRecipients.length > 0 ? Math.round((clickedCount / updatedRecipients.length) * 100) : cmp.clickRate;
+
+                return {
+                  ...cmp,
+                  recipientLeads: updatedRecipients,
+                  openRate,
+                  clickRate
+                };
+              });
+
+              apiService.saveEmailCampaigns(updatedList, currentTenant?.id);
+              return updatedList;
+            });
 
             // 3. Update Lead timeline state
             setLeads((prevLeads) =>

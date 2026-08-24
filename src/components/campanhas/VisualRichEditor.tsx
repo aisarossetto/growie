@@ -10,53 +10,6 @@ interface VisualRichEditorProps {
   showVariables?: boolean;
 }
 
-// Image Optimizer: Resizes image to max 750px width and compresses JPEG to 0.78 quality
-// Keeps base64 data under 25KB so Gmail NEVER clips the email message ([Mensagem cortada])
-const compressAndResizeImage = (fileOrDataUrl: File | string, callback: (compressedDataUrl: string) => void) => {
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-
-  const processImgSrc = (src: string) => {
-    img.src = src;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        callback(src);
-        return;
-      }
-
-      const maxWidth = 750;
-      let width = img.width;
-      let height = img.height;
-
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // High quality 0.78 JPEG compression
-      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.78);
-      callback(compressedDataUrl);
-    };
-    img.onerror = () => callback(typeof fileOrDataUrl === 'string' ? fileOrDataUrl : '');
-  };
-
-  if (typeof fileOrDataUrl === 'string') {
-    processImgSrc(fileOrDataUrl);
-  } else {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result) processImgSrc(e.target.result as string);
-    };
-    reader.readAsDataURL(fileOrDataUrl);
-  }
-};
-
 export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
   value,
   onChange,
@@ -68,7 +21,7 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
-  const [selectedFontSize, setSelectedFontSize] = useState('3');
+  const [selectedFontSize, setSelectedFontSize] = useState('14px');
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Sync internal HTML with external value prop safely
@@ -95,19 +48,19 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
     handleInput();
   };
 
+  // Insert image directly with clean HTML inline styles
   const insertImageSrc = (src: string) => {
     if (!src) return;
-    compressAndResizeImage(src, (optimizedSrc) => {
-      const imgHtml = `<img src="${optimizedSrc}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; display: block; border: 1px solid #e2e8f0;" alt="Imagem do E-mail" />`;
+    const imgHtml = `<img src="${src}" style="max-width: 100%; height: auto; display: block; margin: 10px 0; border: 0; outline: none;" alt="Imagem do E-mail" />`;
 
-      if (editorRef.current) {
-        editorRef.current.focus();
-        document.execCommand('insertHTML', false, imgHtml);
-        handleInput();
-      }
-    });
+    if (editorRef.current) {
+      editorRef.current.focus();
+      document.execCommand('insertHTML', false, imgHtml);
+      handleInput();
+    }
   };
 
+  // Handle Ctrl + V pasting of images from clipboard safely
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     const items = e.clipboardData?.items;
     if (items) {
@@ -117,9 +70,12 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
           e.preventDefault();
           const file = item.getAsFile();
           if (file) {
-            compressAndResizeImage(file, (optimizedSrc) => {
-              insertImageSrc(optimizedSrc);
-            });
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const base64Data = event.target?.result as string;
+              insertImageSrc(base64Data);
+            };
+            reader.readAsDataURL(file);
           }
           return;
         }
@@ -130,11 +86,40 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files[0]) {
-      compressAndResizeImage(files[0], (optimizedSrc) => {
-        insertImageSrc(optimizedSrc);
-      });
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Data = event.target?.result as string;
+        insertImageSrc(base64Data);
+      };
+      reader.readAsDataURL(file);
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const applyCustomFontSize = (sizePx: string) => {
+    setSelectedFontSize(sizePx);
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) {
+      // If no text selected, set font size execCmd mapped command
+      const mappedSize = sizePx === '8px' ? '1' : sizePx === '11px' ? '2' : sizePx === '12px' ? '2' : sizePx === '14px' ? '3' : sizePx === '16px' ? '4' : sizePx === '18px' ? '5' : '6';
+      execCmd('fontSize', mappedSize);
+      return;
+    }
+
+    const span = document.createElement('span');
+    span.style.fontSize = sizePx;
+    span.style.lineHeight = '1.4';
+    try {
+      range.surroundContents(span);
+      handleInput();
+    } catch (e) {
+      const mappedSize = sizePx === '8px' ? '1' : sizePx === '11px' ? '2' : sizePx === '12px' ? '2' : sizePx === '14px' ? '3' : sizePx === '16px' ? '4' : sizePx === '18px' ? '5' : '6';
+      execCmd('fontSize', mappedSize);
+    }
   };
 
   const insertVar = (varName: string) => {
@@ -162,7 +147,7 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
         </label>
 
         <span className="text-[10px] font-mono font-bold text-growie-purple bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200 flex items-center gap-1">
-          <ImageIcon size={11} className="text-growie-purple" /> 📋 Copie e cole (Ctrl + V) qualquer imagem diretamente aqui!
+          <ImageIcon size={11} className="text-growie-purple" /> 📋 Cole imagens diretamente com Ctrl + V!
         </span>
       </div>
 
@@ -201,22 +186,21 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
 
             <div className="h-4 w-px bg-slate-200 mx-1" />
 
-            {/* Font Size Selector */}
+            {/* Exact Font Size Selector requested by user: 8, 11, 12, 14, 16, 18, 21 */}
             <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs">
               <Type size={12} className="text-slate-400" />
               <select
                 value={selectedFontSize}
-                onChange={(e) => {
-                  setSelectedFontSize(e.target.value);
-                  execCmd('fontSize', e.target.value);
-                }}
+                onChange={(e) => applyCustomFontSize(e.target.value)}
                 className="bg-transparent text-[11px] font-bold text-slate-700 focus:outline-none cursor-pointer"
               >
-                <option value="2">Pequeno (12px)</option>
-                <option value="3">Normal (14px)</option>
-                <option value="4">Médio (16px)</option>
-                <option value="5">Grande (18px)</option>
-                <option value="6">Título (22px)</option>
+                <option value="8px">Fonte 8px</option>
+                <option value="11px">Fonte 11px</option>
+                <option value="12px">Fonte 12px</option>
+                <option value="14px">Fonte 14px (Normal)</option>
+                <option value="16px">Fonte 16px</option>
+                <option value="18px">Fonte 18px</option>
+                <option value="21px">Fonte 21px (Título)</option>
               </select>
             </div>
 
@@ -327,7 +311,7 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
           )}
         </div>
 
-        {/* Contenteditable Writing Area */}
+        {/* Contenteditable Writing Area with Tight Normal Spacing */}
         <div
           ref={editorRef}
           contentEditable
@@ -336,7 +320,7 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           style={{ minHeight }}
-          className="p-3.5 focus:outline-none text-growie-dark text-xs leading-relaxed font-sans overflow-y-auto min-h-[140px]"
+          className="p-3.5 focus:outline-none text-growie-dark text-xs leading-normal font-sans overflow-y-auto min-h-[140px]"
         />
       </div>
     </div>
