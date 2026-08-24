@@ -1,8 +1,26 @@
-// In-Memory & REST Store for Live Tracking Events (Opens & Clicks)
-let trackingEvents = [];
+import fs from 'fs';
+import path from 'path';
+
+const EVENTS_FILE = path.join('/tmp', 'growie_tracking_events.json');
+
+function loadEvents() {
+  try {
+    if (fs.existsSync(EVENTS_FILE)) {
+      const data = fs.readFileSync(EVENTS_FILE, 'utf8');
+      return JSON.parse(data) || [];
+    }
+  } catch (e) {}
+  return [];
+}
+
+function saveEvents(events) {
+  try {
+    const slice = (events || []).slice(0, 150);
+    fs.writeFileSync(EVENTS_FILE, JSON.stringify(slice), 'utf8');
+  } catch (e) {}
+}
 
 export default async function handler(req, res) {
-  // CORS setup
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -10,6 +28,8 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
+
+  let trackingEvents = loadEvents();
 
   if (req.method === 'POST') {
     const { type = 'open', campaignId, leadId, email, url, tenantId } = req.body || req.query || {};
@@ -26,16 +46,13 @@ export default async function handler(req, res) {
     };
 
     trackingEvents.unshift(newEvent);
-    // Keep max 100 recent events
-    if (trackingEvents.length > 100) {
-      trackingEvents = trackingEvents.slice(0, 100);
-    }
+    saveEvents(trackingEvents);
 
     return res.status(200).json({ success: true, event: newEvent, total: trackingEvents.length });
   }
 
   if (req.method === 'DELETE') {
-    trackingEvents = [];
+    saveEvents([]);
     return res.status(200).json({ success: true, message: 'Events cleared.' });
   }
 
@@ -61,9 +78,9 @@ export function recordTrackingEvent(eventData) {
     timeFormatted: new Date().toLocaleTimeString('pt-BR').slice(0, 5)
   };
 
+  let trackingEvents = loadEvents();
   trackingEvents.unshift(newEvent);
-  if (trackingEvents.length > 100) {
-    trackingEvents = trackingEvents.slice(0, 100);
-  }
+  saveEvents(trackingEvents);
+
   return newEvent;
 }
