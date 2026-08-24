@@ -118,48 +118,46 @@ export const apiService = {
     } catch (e) {}
   },
 
-  // Leads (STRICTLY ISOLATED PER TENANT WORKSPACE WITH AUTOMATIC KEY RECOVERY)
+  // Leads (SHARED CENTRAL WORKSPACE STORAGE ACROSS ALL USERS)
   getLeads: (tenantId: string = 't1'): Lead[] => {
     try {
       const safeId = (tenantId && typeof tenantId === 'string' && tenantId.trim().length > 0) ? tenantId.trim() : 't1';
-      const primaryKey = getTenantKey(BASE_KEYS.LEADS, safeId);
-      const data = localStorage.getItem(primaryKey);
-      if (data !== null) {
-        const parsed = JSON.parse(data);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
+      const keysToCheck = [
+        getTenantKey(BASE_KEYS.LEADS, safeId),
+        getTenantKey(BASE_KEYS.LEADS, 't1'),
+        getTenantKey(BASE_KEYS.LEADS, '1'),
+        'growie_app_leads_v11_t1',
+        'growie_app_leads_v11_1',
+        'growie_app_leads_v11',
+        'growie_app_leads_v10'
+      ];
 
-      // Check fallback workspace key '1'
-      const data1 = localStorage.getItem(getTenantKey(BASE_KEYS.LEADS, '1'));
-      if (data1 !== null) {
-        const parsed = JSON.parse(data1);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          localStorage.setItem(primaryKey, JSON.stringify(parsed));
-          return parsed;
+      const allLeadsMap = new Map<string, Lead>();
+
+      keysToCheck.forEach((key) => {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              parsed.forEach((l: Lead) => {
+                if (l && l.id) {
+                  allLeadsMap.set(l.id, { ...allLeadsMap.get(l.id), ...l });
+                }
+              });
+            }
+          } catch (e) {}
         }
+      });
+
+      const mergedList = Array.from(allLeadsMap.values());
+      if (mergedList.length > 0) {
+        localStorage.setItem(getTenantKey(BASE_KEYS.LEADS, safeId), JSON.stringify(mergedList));
+        localStorage.setItem(getTenantKey(BASE_KEYS.LEADS, 't1'), JSON.stringify(mergedList));
+        localStorage.setItem(getTenantKey(BASE_KEYS.LEADS, '1'), JSON.stringify(mergedList));
       }
 
-      // Check fallback workspace key 't1'
-      const dataT1 = localStorage.getItem(getTenantKey(BASE_KEYS.LEADS, 't1'));
-      if (dataT1 !== null) {
-        const parsed = JSON.parse(dataT1);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          localStorage.setItem(primaryKey, JSON.stringify(parsed));
-          return parsed;
-        }
-      }
-
-      // Check old global leads v10
-      const oldData = localStorage.getItem('growie_app_leads_v10');
-      if (oldData !== null) {
-        const parsed = JSON.parse(oldData);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          localStorage.setItem(primaryKey, JSON.stringify(parsed));
-          return parsed;
-        }
-      }
-
-      return [];
+      return mergedList;
     } catch (e) {
       return [];
     }
@@ -403,23 +401,56 @@ export const apiService = {
     } catch (e) {}
   },
 
-  // Lead Groups / Pastas
+  // Lead Groups / Pastas (SHARED WORKSPACE ACROSS ALL USERS)
   getLeadGroups: (tenantId: string = 't1'): LeadGroup[] => {
     try {
       const safeId = (tenantId && typeof tenantId === 'string' && tenantId.trim().length > 0) ? tenantId.trim() : 't1';
-      const data = localStorage.getItem(getTenantKey('growie_app_lead_groups_v11', safeId));
-      if (data !== null) {
-        const parsed = JSON.parse(data);
-        if (Array.isArray(parsed)) return parsed;
+      const keysToCheck = [
+        getTenantKey('growie_app_lead_groups_v11', safeId),
+        getTenantKey('growie_app_lead_groups_v11', 't1'),
+        getTenantKey('growie_app_lead_groups_v11', '1'),
+        'growie_app_lead_groups_v11'
+      ];
+
+      const groupsMap = new Map<string, LeadGroup>();
+
+      keysToCheck.forEach((key) => {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              parsed.forEach((g: LeadGroup) => {
+                if (g && (g.id || g.name)) {
+                  const mapKey = g.id || g.name;
+                  const existing = groupsMap.get(mapKey);
+                  const combinedLeadIds = Array.from(new Set([...(existing?.leadIds || []), ...(g.leadIds || [])]));
+                  groupsMap.set(mapKey, { ...existing, ...g, leadIds: combinedLeadIds });
+                }
+              });
+            }
+          } catch (e) {}
+        }
+      });
+
+      const mergedList = Array.from(groupsMap.values());
+      if (mergedList.length > 0) {
+        localStorage.setItem(getTenantKey('growie_app_lead_groups_v11', safeId), JSON.stringify(mergedList));
+        localStorage.setItem(getTenantKey('growie_app_lead_groups_v11', 't1'), JSON.stringify(mergedList));
       }
-      return [];
+
+      return mergedList;
     } catch (e) {
       return [];
     }
   },
   saveLeadGroups: (groups: LeadGroup[], tenantId: string = 't1'): void => {
     try {
-      localStorage.setItem(getTenantKey('growie_app_lead_groups_v11', tenantId), JSON.stringify(groups));
+      const safeId = (tenantId && typeof tenantId === 'string' && tenantId.trim().length > 0) ? tenantId.trim() : 't1';
+      const cleanList = Array.isArray(groups) ? groups.filter(Boolean) : [];
+      localStorage.setItem(getTenantKey('growie_app_lead_groups_v11', safeId), JSON.stringify(cleanList));
+      localStorage.setItem(getTenantKey('growie_app_lead_groups_v11', 't1'), JSON.stringify(cleanList));
+      localStorage.setItem(getTenantKey('growie_app_lead_groups_v11', '1'), JSON.stringify(cleanList));
     } catch (e) {}
   },
 

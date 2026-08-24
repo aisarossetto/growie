@@ -706,33 +706,38 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         onImportLeads={(importedLeads) => {
           onAddLeads(importedLeads);
 
-          // Synchronize any new lead groups/folders created during mass import
           const latestGroups = apiService.getLeadGroups();
-          const newFolders: LeadGroup[] = [];
+          const updatedGroups = [...latestGroups];
 
+          // Associate imported lead IDs to specified folders
           importedLeads.forEach((l) => {
+            if (!l.id) return;
+            const leadIdStr: string = l.id;
+
             (l.groups || []).forEach((gName) => {
-              if (
-                gName &&
-                !latestGroups.some((g) => g.name === gName || g.id === gName) &&
-                !newFolders.some((nf) => nf.name === gName)
-              ) {
-                newFolders.push({
+              if (!gName) return;
+
+              let existingGroup = updatedGroups.find((g) => g.name === gName || g.id === gName);
+              if (existingGroup) {
+                const combined = Array.from(new Set([...(existingGroup.leadIds || []), leadIdStr]));
+                existingGroup.leadIds = combined;
+              } else {
+                const newGroup: LeadGroup = {
                   id: 'lg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
                   name: gName,
                   description: 'Pasta criada durante Importação em Massa de Leads',
                   color: 'purple',
-                  leadIds: []
-                });
+                  leadIds: [leadIdStr]
+                };
+                updatedGroups.push(newGroup);
               }
             });
           });
 
-          const mergedGroups = [...latestGroups, ...newFolders];
-          setLeadGroups(mergedGroups);
-          apiService.saveLeadGroups(mergedGroups);
+          setLeadGroups(updatedGroups);
+          apiService.saveLeadGroups(updatedGroups);
 
-          setNotification(`${importedLeads.length} novos leads foram importados com sucesso e vinculados às suas respectivas pastas!`);
+          setNotification(`${importedLeads.length} novos leads foram importados com sucesso e vinculados à pasta selecionada!`);
           setTimeout(() => setNotification(null), 4000);
           setPreselectedFolderForImport(undefined);
         }}

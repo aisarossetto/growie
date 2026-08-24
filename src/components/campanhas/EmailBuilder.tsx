@@ -28,6 +28,8 @@ import {
   Trash2,
   UserCheck,
   Calendar,
+  Settings,
+  Edit,
   FolderPlus,
   RefreshCw
 } from 'lucide-react';
@@ -171,14 +173,44 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
     alert(`Modelo "${name.trim()}" salvo com sucesso! Você pode carregá-lo a qualquer momento.`);
   };
 
+  const [isTemplateManagerOpen, setIsTemplateManagerOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
+
+  const handleDeleteTemplate = (id: string) => {
+    const tpl = savedTemplates.find((t) => t.id === id);
+    if (!tpl) return;
+    if (confirm(`Tem certeza que deseja excluir o modelo "${tpl.name}"?`)) {
+      const updated = savedTemplates.filter((t) => t.id !== id);
+      setSavedTemplates(updated);
+      localStorage.setItem('growie_saved_email_templates_v2', JSON.stringify(updated));
+      if (editingTemplate?.id === id) setEditingTemplate(null);
+    }
+  };
+
   const handleSelectTemplate = (templateId: string) => {
     const tpl = savedTemplates.find((t) => t.id === templateId);
     if (!tpl) return;
-    if (confirm(`Deseja carregar o modelo "${tpl.name}"? Isso preencherá o assunto, mensagem e assinatura.`)) {
-      setSubject(tpl.subject || '');
-      setContent(tpl.content || '');
-      setSignature(tpl.signature || '');
+    setSubject(tpl.subject || '');
+    setContent(tpl.content || '');
+    setSignature(tpl.signature || '');
+  };
+
+  const handleSaveEditedTemplate = () => {
+    if (!editingTemplate || !editingTemplate.name.trim()) {
+      alert('Por favor, digite um nome para o modelo.');
+      return;
     }
+    const exists = savedTemplates.some((t) => t.id === editingTemplate.id);
+    let updated: any[];
+    if (exists) {
+      updated = savedTemplates.map((t) => (t.id === editingTemplate.id ? editingTemplate : t));
+    } else {
+      updated = [editingTemplate, ...savedTemplates];
+    }
+    setSavedTemplates(updated);
+    localStorage.setItem('growie_saved_email_templates_v2', JSON.stringify(updated));
+    setEditingTemplate(null);
+    alert('Modelo salvo com sucesso!');
   };
 
   // Registered Smtp Accounts State
@@ -709,6 +741,14 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsTemplateManagerOpen(true)}
+                  className="px-3 py-1.5 rounded-xl bg-purple-100 text-growie-purple font-extrabold text-xs border border-purple-300 hover:bg-purple-200 transition-colors flex items-center gap-1.5 shrink-0"
+                  title="Gerenciar, editar e excluir modelos de e-mail salvos"
+                >
+                  <Settings size={13} /> ⚙️ Gerenciar Modelos
+                </button>
                 <button
                   type="button"
                   onClick={handleSaveCurrentAsTemplate}
@@ -1422,6 +1462,142 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
           setTimeout(() => setNotification(null), 3000);
         }}
       />
+
+      {/* EMAIL TEMPLATES MANAGER MODAL (GERENCIAR, EDITAR, EXCLUIR E CRIAR MODELOS) */}
+      {isTemplateManagerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-growie-dark/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-4 text-xs font-sans">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-extrabold text-growie-dark flex items-center gap-2">
+                <Settings size={18} className="text-growie-purple" /> Gerenciador Completo de Modelos de E-mail Salvos
+              </h3>
+              <button
+                onClick={() => {
+                  setIsTemplateManagerOpen(false);
+                  setEditingTemplate(null);
+                }}
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {editingTemplate ? (
+              <div className="space-y-4 bg-purple-50/60 p-4 rounded-2xl border border-purple-200">
+                <h4 className="font-extrabold text-growie-purple text-xs flex items-center gap-1.5">
+                  <Edit size={14} /> Editar Modelo: {editingTemplate.name}
+                </h4>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Nome do Modelo:</label>
+                  <input
+                    type="text"
+                    value={editingTemplate.name}
+                    onChange={(e) => setEditingTemplate({ ...editingTemplate, name: e.target.value })}
+                    className="w-full p-2 bg-white border border-purple-300 rounded-xl text-xs font-bold focus:outline-none focus:border-growie-purple"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Assunto Padrão:</label>
+                  <input
+                    type="text"
+                    value={editingTemplate.subject}
+                    onChange={(e) => setEditingTemplate({ ...editingTemplate, subject: e.target.value })}
+                    className="w-full p-2 bg-white border border-purple-300 rounded-xl text-xs font-bold focus:outline-none focus:border-growie-purple"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <VisualRichEditor
+                    label="Corpo da Mensagem (Editor Visual)"
+                    value={editingTemplate.content}
+                    onChange={(val) => setEditingTemplate({ ...editingTemplate, content: val })}
+                    minHeight="140px"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <VisualRichEditor
+                    label="Assinatura Padrão"
+                    value={editingTemplate.signature}
+                    onChange={(val) => setEditingTemplate({ ...editingTemplate, signature: val })}
+                    minHeight="80px"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    onClick={() => setEditingTemplate(null)}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-200 text-slate-700 font-bold hover:bg-slate-300"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveEditedTemplate}
+                    className="px-4 py-1.5 rounded-xl bg-growie-purple text-white font-extrabold shadow-sm hover:bg-purple-800"
+                  >
+                    💾 Salvar Alterações no Modelo
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-slate-500">
+                    Você possui <strong>{savedTemplates.length}</strong> modelos de e-mail salvos. Escolha um para editar, excluir ou carregar no formulário atual.
+                  </p>
+                  <button
+                    onClick={() => setEditingTemplate({ id: 'tpl_' + Date.now(), name: 'Novo Modelo', subject: '', content: '', signature: '' })}
+                    className="px-3 py-1.5 rounded-xl bg-growie-purple text-white font-extrabold flex items-center gap-1 shadow-xs hover:bg-purple-800"
+                  >
+                    <Plus size={13} /> + Criar Novo Modelo
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                  {savedTemplates.map((t) => (
+                    <div key={t.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-purple-300 transition-all">
+                      <div className="space-y-1">
+                        <div className="font-extrabold text-growie-dark text-xs flex items-center gap-1.5">
+                          <Mail size={14} className="text-growie-purple" /> {t.name}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          <span className="font-bold text-slate-700">Assunto:</span> {t.subject || '(Sem assunto)'}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 w-full sm:w-auto justify-end">
+                        <button
+                          onClick={() => {
+                            handleSelectTemplate(t.id);
+                            setIsTemplateManagerOpen(false);
+                          }}
+                          className="px-3 py-1 rounded-xl bg-purple-600 text-white font-extrabold text-[11px] shadow-2xs hover:bg-purple-700 flex items-center gap-1"
+                        >
+                          <Send size={12} /> Carregar
+                        </button>
+                        <button
+                          onClick={() => setEditingTemplate({ ...t })}
+                          className="px-3 py-1 rounded-xl bg-white border border-purple-300 text-growie-purple font-extrabold text-[11px] hover:bg-purple-50 flex items-center gap-1"
+                        >
+                          <Edit size={12} /> Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTemplate(t.id)}
+                          className="px-2.5 py-1 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 font-extrabold text-[11px] hover:bg-rose-100 flex items-center gap-1"
+                        >
+                          <Trash2 size={12} /> Excluir
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
