@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { DashboardView } from './components/dashboard/DashboardView';
@@ -202,7 +202,7 @@ export function App() {
   }, [userList]);
 
   // Real-Time Email Open & Click Tracking Event Poller
-  const [processedEventIds, setProcessedEventIds] = useState<Set<string>>(() => new Set());
+  const processedEventIdsRef = useRef<Set<string>>(new Set());
   const [liveToastNotification, setLiveToastNotification] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
@@ -217,16 +217,19 @@ export function App() {
         if (!data.success || !Array.isArray(data.events) || data.events.length === 0) return;
 
         data.events.forEach((evt: any) => {
-          if (!evt.id || processedEventIds.has(evt.id)) return;
-
-          setProcessedEventIds((prev) => new Set(prev).add(evt.id));
+          if (!evt.id || processedEventIdsRef.current.has(evt.id)) return;
+          processedEventIdsRef.current.add(evt.id);
 
           const targetEmail = (evt.email || '').toLowerCase().trim();
           const targetCmpId = evt.campaignId;
 
           if (evt.type === 'open') {
-            // 1. Trigger System Notification & Toast
-            const notifMsg = `O lead ${targetEmail || 'destinatário'} acabou de abrir a sua campanha de e-mail (${evt.timeFormatted || 'agora'})!`;
+            // 1. Resolve Lead Name
+            const leadMatch = leads.find((l) => l.email && l.email.toLowerCase().trim() === targetEmail);
+            const leadDisplayName = leadMatch?.name ? `${leadMatch.name} <${targetEmail}>` : targetEmail || 'Destinatário';
+
+            // 2. Trigger System Notification & Floating Toast
+            const notifMsg = `O lead ${leadDisplayName} acabou de abrir a sua campanha de e-mail (${evt.timeFormatted || new Date().toLocaleTimeString('pt-BR').slice(0, 5)})!`;
             apiService.addNotification({
               title: '👁️ E-mail Marketing Aberto!',
               description: notifMsg,
@@ -237,7 +240,7 @@ export function App() {
               title: '👁️ Nova Abertura de E-mail Detectada!',
               message: notifMsg
             });
-            setTimeout(() => setLiveToastNotification(null), 6000);
+            setTimeout(() => setLiveToastNotification(null), 7000);
 
             // 2. Update EmailCampaigns state & persist to LocalStorage
             setEmailCampaigns((prevCampaigns) => {
@@ -301,7 +304,7 @@ export function App() {
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [isAuthenticated, currentTenant?.id, processedEventIds]);
+  }, [isAuthenticated, currentTenant?.id]);
 
   // Auth Gate check
   if (!isAuthenticated) {
