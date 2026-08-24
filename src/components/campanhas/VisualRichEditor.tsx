@@ -60,6 +60,45 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
     }
   };
 
+  // Resize & Compress Image to JPEG/PNG DataUrl under 800px width (prevents Gmail clipping)
+  const processAndInsertImage = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const src = event.target?.result as string;
+      if (!src) return;
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          insertImageSrc(src);
+          return;
+        }
+
+        const maxWidth = 700;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Compress JPEG to 0.72 quality for ultra compact base64
+        const compressed = canvas.toDataURL('image/jpeg', 0.72);
+        insertImageSrc(compressed);
+      };
+      img.onerror = () => insertImageSrc(src);
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Handle Ctrl + V pasting of images from clipboard safely
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     const items = e.clipboardData?.items;
@@ -70,12 +109,7 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
           e.preventDefault();
           const file = item.getAsFile();
           if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-              const base64Data = event.target?.result as string;
-              insertImageSrc(base64Data);
-            };
-            reader.readAsDataURL(file);
+            processAndInsertImage(file);
           }
           return;
         }
@@ -86,13 +120,7 @@ export const VisualRichEditor: React.FC<VisualRichEditorProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files[0]) {
-      const file = files[0];
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64Data = event.target?.result as string;
-        insertImageSrc(base64Data);
-      };
-      reader.readAsDataURL(file);
+      processAndInsertImage(files[0]);
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };

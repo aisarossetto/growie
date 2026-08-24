@@ -128,47 +128,9 @@ export default async function handler(req, res) {
         message: `E-mail enviado com sucesso via Hostinger TLS (Porta 587) para ${targetEmail}.`
       });
     } catch (err587) {
-      console.warn(`Port 587 TLS failed (${err587.message}), attempting HTTPS Direct Mailer:`);
-
-      // 3. ATTEMPT HTTPS DIRECT DELIVERY VIA FORMSUBMIT REST API (PORT 443 - DIRECT TO LEAD)
-      try {
-        const httpRes = await fetch(`https://formsubmit.co/ajax/${targetEmail}`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            _subject: subject || 'Proposta Comercial Growie',
-            _replyto: validFromEmail,
-            remetente: targetSender,
-            mensagem: bodyText || bodyHtml.replace(/<[^>]+>/g, ''),
-            _template: 'box'
-          })
-        });
-
-        const httpData = await httpRes.json();
-        if (httpRes.ok && httpData.success) {
-          console.log(`✅ Real Email Delivered via HTTPS Direct API to ${targetEmail}`);
-          return res.status(200).json({
-            success: true,
-            method: 'HTTPS_DIRECT_API',
-            messageId: 'fs_' + Date.now(),
-            pixelUrl: trackingPixelUrl,
-            message: `E-mail entregue com sucesso via HTTPS API para ${targetEmail}.`
-          });
-        }
-      } catch (errHttp) {
-        console.error('HTTPS Direct API Error:', errHttp.message);
-      }
-
-      // 4. Final Fallback Response with detailed diagnostics
-      return res.status(200).json({
-        success: true,
-        simulated: true,
-        pixelUrl: trackingPixelUrl,
-        smtpError: err465.message || err587.message,
-        message: `Disparo registrado para ${targetEmail}. (Nota: Se a senha Hostinger estiver incorreta ou a caixa de e-mail desativada, atualize em Configurações).`
+      console.error(`❌ ERRO SMTP HOSTINGER (465 & 587 Falharam):`, err465.message, err587.message);
+      return res.status(500).json({
+        error: `Falha na autenticação SMTP Hostinger: ${err587.message || err465.message}. Verifique o e-mail e senha configurados.`
       });
     }
   }

@@ -547,7 +547,7 @@ export const EmailBuilder: React.FC<EmailBuilderProps> = ({
             toName: currentLead.name || 'Cliente',
             subject: customizedSubject,
             content: customizedContent,
-            html: `<div style="font-family: sans-serif; font-size: 14px; line-height: 1.6; color: #1e293b;"><div style="white-space: pre-wrap;">${customizedContent}</div>${customizedSignature ? `<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${customizedSignature}</div>` : ''}</div>`,
+            html: `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.4; color: #1e293b; margin: 0; padding: 0;"><style>p, div { margin: 0 0 6px 0; padding: 0; line-height: 1.4; }</style><div>${customizedContent}</div>${customizedSignature ? `<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${customizedSignature}</div>` : ''}</div>`,
             signature: customizedSignature,
             attachments: attachments || [],
             campaignId: campaignIdToUse,
